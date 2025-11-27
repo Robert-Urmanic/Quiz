@@ -22,12 +22,14 @@ public class DatabaseConnection {
         connect(this.url, this.user, this.password);
     }
 
-    public static void connect(String url, String user, String password) {
-        try (
-            Connection conn = DriverManager.getConnection(url, user, password)) {
+    public static Connection connect(String url, String user, String password) {
+        try {
+            Connection conn = DriverManager.getConnection(url, user, password);
+            return conn;
             // System.out.println("Connected to SQL Server successfully!");
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        return null;
     }
 }
