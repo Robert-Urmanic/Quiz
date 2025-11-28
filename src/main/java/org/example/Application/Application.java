@@ -8,7 +8,8 @@ import java.util.Scanner;
 public class Application {
     private static Connection connection;
     private static int iRows = 0;
-    private static int subchapterRow = 0;
+    private static int chapterId = 0;
+    private static int subChapterId = 0;
     private static ResultSet rs;
 
     public static void run() {
@@ -26,23 +27,26 @@ public class Application {
             switch (Integer.parseInt(input.nextLine())) {
                 case 1:
                     System.out.println("Enter the chapter name:");
-                    insert(input, "INSERT INTO chapter(name) VALUES(?)", 0);
+                    insert(input, "INSERT INTO chapter(name) VALUES(?)", 0, 0);
                     break;
                 case 2:
 
-                    subchapterRow = listItemsToChoose();
-                    rs.absolute(subchapterRow);
+                    // System.out.println("Enter the chapter that the subchapter should be linked to:");
+                    chapterId = listItemsToChoose("chapter", rs, input);
                     System.out.println("Type subchapter name:");
-                    if (subchapterRow == 0)
-                        insert(input, "INSERT INTO subchapter(name) VALUES(?)", 0);
+                    if (chapterId == 0)
+                        insert(input, "INSERT INTO subchapter(name) VALUES(?)", 0, 0);
                     else {
-                        insert(input, "INSERT INTO subchapter(name, chapterId) VALUES(?, ?)", rs.getInt(2));
+                        insert(input, "INSERT INTO subchapter(name, chapterId) VALUES(?, ?)", chapterId, 0);
                     }
-
-                    iRows = 0;
                     break;
                 case 3:
-//                insertQuestion(input); // test commit test
+                    System.out.println("Enter the chapter name:");
+                    chapterId = listItemsToChoose("chapter", rs, input);
+                    System.out.println("Enter the subchapter name:");
+                    subChapterId = listItemsToChoose("subchapter", rs, input);
+                    System.out.println("Enter the question:");
+                    insert(input, "INSERT INTO question(question, chapterId, subchapterId) VALUES(?,?,?)", chapterId, subChapterId);
                     break;
                 default:
                     System.out.println("Nothing found");
@@ -54,24 +58,28 @@ public class Application {
         }
     }
 
-    private static void insert(Scanner input, String query, int chapterId) throws SQLException {
+    private static void insert(Scanner input, String query, int chapterId, int subChapterId) throws SQLException {
         PreparedStatement pstmt = connection.prepareStatement(query);
         pstmt.setString(1, input.nextLine());
         if (chapterId != 0)
             pstmt.setInt(2, chapterId);
+        if (subChapterId != 0)
+            pstmt.setInt(3, subChapterId);
         pstmt.executeUpdate();
     }
 
     private static Integer listItemsToChoose(String tableName, ResultSet rs, Scanner input) throws SQLException {
         System.out.println("Select a " + tableName + " to link:");
         Statement stmt = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-        rs = stmt.executeQuery("SELECT Name, Id FROM Chapter");
+        rs = stmt.executeQuery("SELECT Name, Id FROM " + tableName);
         System.out.println("0. - None");
         while (rs.next()) {
             iRows++;
             System.out.println(iRows + ". - " + rs.getString(1));
         }
+        iRows = 0;
 
-        return Integer.parseInt(input.nextLine());
+        rs.absolute(Integer.parseInt(input.nextLine()));
+        return rs.getInt(2);
     }
 }
