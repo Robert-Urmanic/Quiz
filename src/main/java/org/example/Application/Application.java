@@ -20,6 +20,7 @@ public class Application {
         System.out.println("1. Add a chapter -----------------");
         System.out.println("2. Add a subchapter --------------");
         System.out.println("3. Add a question ----------------");
+        System.out.println("4. See all chapter questions -----");
 
         Scanner input = new Scanner(System.in);
         // žádná kontrola na input, budu to používat jen já...
@@ -30,8 +31,6 @@ public class Application {
                     insert(input, "INSERT INTO chapter(name) VALUES(?)", 0, 0);
                     break;
                 case 2:
-
-                    // System.out.println("Enter the chapter that the subchapter should be linked to:");
                     chapterId = listItemsToChoose("chapter", rs, input);
                     System.out.println("Type subchapter name:");
                     if (chapterId == 0)
@@ -47,6 +46,17 @@ public class Application {
                     subChapterId = listItemsToChoose("subchapter", rs, input);
                     System.out.println("Enter the question:");
                     insert(input, "INSERT INTO question(question, chapterId, subchapterId) VALUES(?,?,?)", chapterId, subChapterId);
+                    break;
+                case 4:
+                    Statement selectAll = connection.createStatement();
+                    rs = selectAll.executeQuery("SELECT * FROM Chapter AS CH WITH(nolock)"
+                                                + " INNER JOIN Subchapter AS SU WITH(nolock)"
+                                                + " ON CH.Id = SU.ChapterId"
+                                                + " INNER JOIN question AS QU"
+                                                + " ON QU.ChapterId = CH.Id AND QU.SubchapterId = SU.Id");
+                    while(rs.next()){
+                        System.out.println(rs.getString("question"));
+                    }
                     break;
                 default:
                     System.out.println("Nothing found");
