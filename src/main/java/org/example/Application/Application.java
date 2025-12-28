@@ -52,12 +52,7 @@ public class Application {
                         insert(input, "INSERT INTO question(question, chapterId, subchapterId) VALUES(?,?,?)", chapterId, subChapterId);
                         break;
                     case 4:
-                        Statement selectAll = connection.createStatement();
-                        rs = selectAll.executeQuery("SELECT CH.name as chname, SU.name as suname, * FROM Chapter AS CH WITH(nolock)"
-                                + " INNER JOIN Subchapter AS SU WITH(nolock)"
-                                + " ON CH.Id = SU.ChapterId"
-                                + " INNER JOIN question AS QU"
-                                + " ON QU.ChapterId = CH.Id AND QU.SubchapterId = SU.Id");
+                        rs = getAllQuestions();
                         while (rs.next()) {
                             System.out.println("Chapter: " + rs.getString("chname") + "\n\tSubchapter: " + rs.getString("suname") + "\n\t\tQuestion: " + rs.getString("question"));
                         }
@@ -96,5 +91,21 @@ public class Application {
 
         rs.absolute(Integer.parseInt(input.nextLine()));
         return rs.getInt(2);
+    }
+
+    public static void invokeConnection() {
+        if (connection == null)
+            connection = DatabaseConnection.connect("jdbc:sqlserver://URMANICR-DH4241:1433;databaseName=Quiz;encrypt=false", "testDB", "testDB");
+    }
+
+    public static ResultSet getAllQuestions() throws SQLException{
+        invokeConnection();
+        Statement selectAll = connection.createStatement();
+        rs = selectAll.executeQuery("SELECT CH.name as chname, SU.name as suname, * FROM Chapter AS CH WITH(nolock)"
+                + " INNER JOIN Subchapter AS SU WITH(nolock)"
+                + " ON CH.Id = SU.ChapterId"
+                + " INNER JOIN question AS QU"
+                + " ON QU.ChapterId = CH.Id AND QU.SubchapterId = SU.Id");
+        return rs;
     }
 }
