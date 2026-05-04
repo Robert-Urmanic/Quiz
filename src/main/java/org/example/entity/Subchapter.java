@@ -10,8 +10,9 @@ public class Subchapter {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @Column(name = "chapterId")
-    private String chapterId;
+    @ManyToOne
+    @JoinColumn(name = "chapterId") // This is the column name in your SQL table
+    private Chapter chapter;
 
     @Column(name = "name")
     private String name;

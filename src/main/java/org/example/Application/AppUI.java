@@ -12,6 +12,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import org.example.repository.ChapterRepository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -51,11 +52,15 @@ public class AppUI extends javafx.application.Application {
         ComboBox<String> mainCategory = new ComboBox<>();
         ComboBox<String> subCategory = new ComboBox<>();
 
+        ChapterRepository cr = new ChapterRepository();
+
         mainCategory.setPromptText("Select Category");
-        mainCategory.getItems().addAll("Programming", "Databases");
+        // mainCategory.getItems().addAll("Programming", "Databases");
+
+        mainCategory.setItems(cr.findAllNames());
 
 // 2. Define the data for the second dropdown
-        ObservableList<String> programmingLangs = FXCollections.observableArrayList("Java", "Python", "C#");
+        ObservableList<String> programmingLangs = cr.findAllNames();
         ObservableList<String> databaseTypes = FXCollections.observableArrayList("MySQL", "PostgreSQL", "MongoDB");
 
 // 3. Add the Listener to change values dynamically

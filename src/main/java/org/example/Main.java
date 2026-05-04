@@ -10,16 +10,24 @@ import javafx.scene.control.Button;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.scene.control.TextField;
+import org.example.util.HibernateUtil;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+@SpringBootApplication
 public class Main {
 
 
     public static void main(String[] args) {
-        AppUI appUi = new AppUI();
-        appUi.launch(AppUI.class, args);
+        HibernateUtil.getSessionFactory();
+
+        SpringApplication.run(Main.class, args);
+
+//        AppUI appUi = new AppUI();
+//        appUi.launch(AppUI.class, args);
         // Application.run();
     }
 }
