@@ -19,5 +19,15 @@ public class Subchapter {
 
     public Subchapter() {} // Required
 
-    // Getters and Setters...
+    public int getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public Chapter getChapter() {
+        return chapter;
+    }
 }
