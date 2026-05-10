@@ -1,13 +1,12 @@
 package org.example.restController;
 
+import org.example.entity.Chapter;
 import org.example.repository.ChapterRepository;
 import org.example.repository.SubchapterRepository;
+import org.example.util.HibernateUtil;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
@@ -46,5 +45,18 @@ public class HomeController {
                 "status", "working",
                 "number", 123
         );
+    }
+
+    @PostMapping("/addChapter")
+    @ResponseBody
+    public String addChapter(@RequestBody Map<String, String> data) {
+        String name = data.get("name");
+
+        Chapter chapter = new Chapter();
+        chapter.setName(name);
+
+        HibernateUtil.save(chapter);
+
+        return "ok";
     }
 }

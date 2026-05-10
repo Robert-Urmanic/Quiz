@@ -1,6 +1,8 @@
 package org.example.util;
 
+import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 
 public class HibernateUtil {
@@ -24,5 +26,18 @@ public class HibernateUtil {
     public static void shutdown() {
         // Close caches and connection pools
         getSessionFactory().close();
+    }
+
+    public static void save(Object object) {
+
+        Session session = getSessionFactory().openSession();
+
+        Transaction tx = session.beginTransaction();
+
+        session.persist(object);
+
+        tx.commit();
+
+        session.close();
     }
 }

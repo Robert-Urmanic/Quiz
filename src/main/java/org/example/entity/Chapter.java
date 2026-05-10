@@ -30,4 +30,8 @@ public class Chapter {
     public List<Subchapter> getSubchapters() {
         return subchapters;
     }
+
+    public void setName(String name) {
+        this.name = name;
+    }
 }

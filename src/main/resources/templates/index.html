@@ -19,6 +19,30 @@
     <option value="">-- Choose subchapter --</option>
 </select>
 
+<hr>
+
+<!-- ADD CHAPTER -->
+<div>
+    <input type="text" id="chapterName" placeholder="New chapter name">
+    <button onclick="addChapter()">Add Chapter</button>
+</div>
+
+<br>
+
+<!-- ADD SUBCHAPTER -->
+<div>
+    <input type="text" id="subchapterName" placeholder="New subchapter name">
+    <button onclick="addSubchapter()">Add Subchapter</button>
+</div>
+
+<br>
+
+<!-- ADD QUESTION -->
+<div>
+    <input type="text" id="questionText" placeholder="New question">
+    <button onclick="addQuestion()">Add Question</button>
+</div>
+
 <script>
     const chapterSelect = document.getElementById("chapterSelect");
     const subchapterSelect = document.getElementById("subchapterSelect");
@@ -42,6 +66,61 @@
             subchapterSelect.appendChild(option);
         });
     });
+
+    async function addChapter() {
+
+    const name = document.getElementById("chapterName").value;
+
+    await fetch("/addChapter", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            name: name
+        })
+    });
+
+    alert("Chapter added");
+}
+
+async function addSubchapter() {
+
+    const name = document.getElementById("subchapterName").value;
+    const chapterId = document.getElementById("chapterSelect").value;
+
+    await fetch("/addSubchapter", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            name: name,
+            chapterId: chapterId
+        })
+    });
+
+    alert("Subchapter added");
+}
+
+async function addQuestion() {
+
+    const text = document.getElementById("questionText").value;
+    const subchapterId = document.getElementById("subchapterSelect").value;
+
+    await fetch("/addQuestion", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            text: text,
+            subchapterId: subchapterId
+        })
+    });
+
+    alert("Question added");
+}
 </script>
 </body>
 </html>
