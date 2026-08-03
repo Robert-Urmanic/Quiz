@@ -4,7 +4,11 @@
         "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
 <hibernate-configuration>
     <session-factory>
-        <property name="connection.driver_class">com.microsoft.sqlserver.jdbc.SQLServerDriver</property>
+        <!-- Local development defaults. In other environments these are
+             overridden by DB_URL / DB_USER / DB_PASSWORD (see HibernateUtil),
+             so deployment credentials never live in this file.
+             The driver is resolved from the URL, so switching database engine
+             only means pointing DB_URL somewhere else. -->
         <property name="connection.url">jdbc:sqlserver://URMANICR-DH4241:1433;databaseName=Quiz;encrypt=false</property>
         <property name="connection.username">testDB</property>
         <property name="connection.password">testDB</property>
@@ -16,5 +20,6 @@
 
         <mapping class="org.example.entity.Chapter"/>
         <mapping class="org.example.entity.Subchapter"/>
+        <mapping class="org.example.entity.Question"/>
     </session-factory>
 </hibernate-configuration>

@@ -1,6 +1,8 @@
 package org.example.restController;
 
 import org.example.entity.Chapter;
+import org.example.entity.Question;
+import org.example.entity.Subchapter;
 import org.example.repository.ChapterRepository;
 import org.example.repository.SubchapterRepository;
 import org.example.util.HibernateUtil;
@@ -21,7 +23,7 @@ public class HomeController {
 
         model.addAttribute("chapters", cr.findAll());
 
-        return "/index"; // loads templates/index.html
+        return "index"; // loads templates/index.html
     }
 
     @GetMapping("/subchapters")
@@ -39,6 +41,7 @@ public class HomeController {
     }
 
     @GetMapping("/json")
+    @ResponseBody
     public Map<String, Object> home() {
         return Map.of(
                 "message", "Hello from Spring Boot",
@@ -56,6 +59,56 @@ public class HomeController {
         chapter.setName(name);
 
         HibernateUtil.save(chapter);
+
+        return "ok";
+    }
+
+    @PostMapping("/addSubchapter")
+    @ResponseBody
+    public String addSubchapter(@RequestBody Map<String, String> data) {
+        String name = data.get("name");
+        Integer chapterId = Integer.parseInt(data.get("chapterId"));
+
+        ChapterRepository chapterRepository = new ChapterRepository();
+
+        // Get the Chapter entity from the database
+        Chapter chapter = chapterRepository.findById(chapterId);
+
+        Subchapter subchapter = new Subchapter();
+        subchapter.setName(name);
+        subchapter.setChapter(chapter);
+
+        HibernateUtil.save(subchapter);
+
+        return "ok";
+    }
+
+    @PostMapping("/addQuestion")
+    @ResponseBody
+    public String addQuestion(@RequestBody Map<String, String> data) {
+        String text = data.get("text");
+        Integer chapterId = Integer.parseInt(data.get("chapterId"));
+        Integer subchapterId = Integer.parseInt(data.get("subchapterId"));
+
+        ChapterRepository chapterRepository = new ChapterRepository();
+
+        // Get the Chapter entity from the database
+        Chapter chapter = chapterRepository.findById(chapterId);
+
+        SubchapterRepository subchapterRepository = new SubchapterRepository();
+
+        Subchapter subchapter = subchapterRepository.findById(subchapterId);
+
+        Question question = new Question();
+        question.setQuestion(text);
+        question.setChapter(chapter);
+        question.setSubchapter(subchapter);
+
+//        Subchapter subchapter = new Subchapter();
+//        subchapter.setName(text);
+//        subchapter.setChapter(chapter);
+
+        HibernateUtil.save(question);
 
         return "ok";
     }

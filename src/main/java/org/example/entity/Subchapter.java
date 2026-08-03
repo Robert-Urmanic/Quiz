@@ -30,4 +30,16 @@ public class Subchapter {
     public Chapter getChapter() {
         return chapter;
     }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public void setChapter(Chapter chapter) {
+        this.chapter = chapter;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
 }

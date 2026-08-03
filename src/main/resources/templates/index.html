@@ -105,8 +105,9 @@ async function addSubchapter() {
 
 async function addQuestion() {
 
-    const text = document.getElementById("questionText").value;
-    const subchapterId = document.getElementById("subchapterSelect").value;
+    const text          = document.getElementById("questionText").value;
+    const subchapterId  = document.getElementById("subchapterSelect").value;
+    const chapterId     = document.getElementById("chapterSelect").value;
 
     await fetch("/addQuestion", {
         method: "POST",
@@ -115,7 +116,8 @@ async function addQuestion() {
         },
         body: JSON.stringify({
             text: text,
-            subchapterId: subchapterId
+            subchapterId: subchapterId,
+            chapterId: chapterId
         })
     });
 

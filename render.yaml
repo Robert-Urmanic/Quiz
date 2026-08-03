@@ -1,0 +1,21 @@
+# Render Blueprint: creates the database and the web service together and wires
+# the connection string between them, so no credentials are entered by hand.
+databases:
+  - name: quiz-db
+    databaseName: quiz
+    user: quiz
+    plan: free
+
+services:
+  - type: web
+    name: javaquiz
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /json
+    envVars:
+      # HibernateUtil translates this into a JDBC url plus credentials.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: quiz-db
+          property: connectionString

@@ -1,5 +1,6 @@
 package org.example.repository;
 
+import org.example.entity.Chapter;
 import org.example.entity.Subchapter;
 import org.example.util.HibernateUtil;
 import org.hibernate.Session;
@@ -16,6 +17,12 @@ public class SubchapterRepository {
                     )
                     .setParameter("chapterId", chapterId)
                     .list();
+        }
+    }
+
+    public Subchapter findById(int id) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            return session.get(Subchapter.class, id);
         }
     }
 }
