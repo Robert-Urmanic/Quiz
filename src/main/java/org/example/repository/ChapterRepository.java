@@ -1,7 +1,5 @@
 package org.example.repository;
 
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import org.example.entity.Chapter;
 import org.example.util.HibernateUtil;
 import org.hibernate.Session;
@@ -14,25 +12,32 @@ public class ChapterRepository {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 
             // 2. Write HQL (Notice: "Chapter" is the Class name, not the table name!)
-            return session.createQuery("from Chapter", Chapter.class).list();
+            return session.createQuery("from Chapter order by name", Chapter.class).list();
         }
         // try-with-resources automatically closes the session for you!
-    }
-
-    public ObservableList<String> findAllNames() {
-        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-
-            List<String> names = session.createQuery(
-                    "select c.name from Chapter c", String.class
-            ).list();
-
-            return FXCollections.observableArrayList(names);
-        }
     }
 
     public Chapter findById(int id) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             return session.get(Chapter.class, id);
+        }
+    }
+
+    /**
+     * Case-insensitive lookup used to spot a chapter the user is about to
+     * create for the second time. Returns null when the name is still free.
+     */
+    public Chapter findByName(String name) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            return session.createQuery(
+                            "from Chapter c where lower(c.name) = lower(:name)",
+                            Chapter.class
+                    )
+                    .setParameter("name", name)
+                    .list()
+                    .stream()
+                    .findFirst()
+                    .orElse(null);
         }
     }
 }

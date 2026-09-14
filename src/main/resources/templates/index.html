@@ -1,128 +1,974 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Home</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Quiz</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+    <style>
+        :root {
+            --ink: #17242e;
+            --ink-soft: #5a6b75;
+            --ground: #e6e9e3;
+            --surface: #ffffff;
+            --rule: #c9d2cc;
+            --accent: #245e52;
+            --flash: #f2d08a;
+            --error: #9b3327;
+
+            --serif: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
+            --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--ground);
+            color: var(--ink);
+            font-family: var(--serif);
+            font-size: 16px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .sheet {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 0 28px 72px;
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 3px;
+        }
+
+        /* ------------------------------------------------------- masthead */
+
+        .masthead {
+            display: flex;
+            align-items: baseline;
+            gap: 14px;
+            padding: 30px 0 18px;
+        }
+
+        .wordmark {
+            margin: 0;
+            font-family: var(--mono);
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+        }
+
+        .wordmark-rule {
+            flex: 1;
+            align-self: center;
+            height: 1px;
+            background: var(--rule);
+        }
+
+        /* --------------------------------------------------------- drawer */
+
+        .drawer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px 44px;
+            padding-bottom: 26px;
+            border-bottom: 1px solid var(--rule);
+            margin-bottom: 36px;
+        }
+
+        .field {
+            flex: 1 1 240px;
+            min-width: 0;
+        }
+
+        .field-label {
+            display: block;
+            margin-bottom: 6px;
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+        }
+
+        .select {
+            width: 100%;
+            padding: 6px 2px;
+            font-family: var(--serif);
+            font-size: 16px;
+            color: var(--ink);
+            background: transparent;
+            border: 0;
+            border-bottom: 1px solid var(--ink);
+            border-radius: 0;
+        }
+
+        .select:disabled {
+            color: var(--ink-soft);
+            border-bottom-color: var(--rule);
+        }
+
+        .creator {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        /* display: flex above outranks the browser default for [hidden], so the
+           hidden state has to be spelled out here. */
+        .creator[hidden] { display: none; }
+
+        .creator-input {
+            flex: 1;
+            min-width: 0;
+            padding: 5px 2px;
+            font-family: var(--serif);
+            font-size: 15px;
+            color: var(--ink);
+            background: transparent;
+            border: 0;
+            border-bottom: 1px solid var(--accent);
+        }
+
+        .creator-input::placeholder { color: var(--ink-soft); }
+
+        /* -------------------------------------------------------- buttons */
+
+        .button {
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--surface);
+            background: var(--ink);
+            border: 1px solid var(--ink);
+            border-radius: 1px;
+            padding: 11px 18px;
+            cursor: pointer;
+            transition: background-color 120ms ease, border-color 120ms ease;
+        }
+
+        .button:hover:not(:disabled) {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .button:disabled {
+            background: var(--rule);
+            border-color: var(--rule);
+            cursor: not-allowed;
+        }
+
+        .button-ghost {
+            color: var(--ink-soft);
+            background: transparent;
+            border-color: var(--rule);
+        }
+
+        .button-ghost:hover:not(:disabled) {
+            color: var(--surface);
+            background: var(--ink-soft);
+            border-color: var(--ink-soft);
+        }
+
+        .button-mini { padding: 7px 13px; }
+
+        kbd {
+            font-family: var(--mono);
+            font-size: 10px;
+            border: 1px solid currentColor;
+            border-radius: 2px;
+            padding: 1px 4px;
+            margin-left: 3px;
+            opacity: 0.65;
+        }
+
+        /* ------------------------------------------------------ workspace */
+
+        .workspace {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 336px;
+            gap: 44px;
+            align-items: start;
+        }
+
+        /* ----------------------------------------------------------- card */
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--rule);
+            border-radius: 2px;
+            box-shadow: 0 14px 30px -22px rgba(23, 36, 46, 0.5);
+        }
+
+        .card-tab {
+            margin: 0;
+            padding: 15px 26px 13px;
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.13em;
+            text-transform: uppercase;
+            border-bottom: 3px double var(--rule);
+        }
+
+        .card.is-locked .card-tab { color: var(--ink-soft); }
+
+        .card.is-locked .card-body,
+        .card.is-locked .card-foot { opacity: 0.45; }
+
+        .card-body { padding: 26px 26px 8px; }
+
+        /* The left rule doubles as the focus indicator, which is why the
+           textareas themselves drop their outline. */
+        .card-field {
+            padding-left: 16px;
+            border-left: 2px solid transparent;
+            margin-bottom: 24px;
+        }
+
+        .card-field:focus-within { border-left-color: var(--accent); }
+
+        .card-label {
+            display: block;
+            margin-bottom: 8px;
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+        }
+
+        .card-field:focus-within .card-label { color: var(--accent); }
+
+        .card-optional {
+            font-size: 9px;
+            letter-spacing: 0.1em;
+            text-transform: none;
+            font-style: italic;
+        }
+
+        /* Ruled lines like an index card. The gradient period has to match
+           line-height exactly, and background-attachment: local keeps the
+           rules glued to the text when it scrolls. */
+        .card-input {
+            display: block;
+            width: 100%;
+            padding: 0;
+            border: 0;
+            resize: vertical;
+            font-family: var(--serif);
+            font-size: 17px;
+            line-height: 28px;
+            color: var(--ink);
+            background-color: transparent;
+            background-image: repeating-linear-gradient(to bottom,
+                transparent 0, transparent 27px,
+                var(--rule) 27px, var(--rule) 28px);
+            background-attachment: local;
+        }
+
+        .card-input:focus { outline: none; }
+
+        .card-foot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+            padding: 18px 26px 24px;
+            border-top: 1px solid var(--rule);
+        }
+
+        .status {
+            flex: 1 1 200px;
+            margin: 0;
+            min-height: 1.3em;
+            font-family: var(--mono);
+            font-size: 11px;
+            line-height: 1.3;
+            color: var(--ink-soft);
+        }
+
+        .status.is-ok { color: var(--accent); }
+        .status.is-error { color: var(--error); }
+
+        /* ---------------------------------------------------------- panel */
+
+        /* Stacked rather than side by side: a two-level path is long enough to
+           wrap, and a wrapping label next to a right-aligned count reads as
+           broken. */
+        .panel-head {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding-bottom: 12px;
+            border-bottom: 3px double var(--rule);
+        }
+
+        .panel-scope {
+            margin: 0;
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        .panel-count {
+            margin: 0;
+            font-family: var(--mono);
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            color: var(--ink-soft);
+        }
+
+        .panel-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .entry {
+            padding: 14px 0 14px 10px;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .entry-question {
+            margin: 0;
+            font-size: 15px;
+            line-height: 1.45;
+        }
+
+        .entry-answer {
+            margin: 5px 0 0;
+            font-size: 13.5px;
+            line-height: 1.45;
+            color: var(--ink-soft);
+        }
+
+        .entry-origin {
+            margin: 7px 0 0;
+            font-family: var(--mono);
+            font-size: 9.5px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+        }
+
+        @keyframes filed {
+            from { background-color: var(--flash); }
+            to { background-color: transparent; }
+        }
+
+        .entry.is-new { animation: filed 1800ms ease-out; }
+
+        .panel-note {
+            margin: 16px 0 0;
+            font-family: var(--mono);
+            font-size: 10.5px;
+            line-height: 1.6;
+            color: var(--ink-soft);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .button { transition: none; }
+            .entry.is-new {
+                animation: none;
+                box-shadow: inset 3px 0 0 var(--flash);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .workspace { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+        }
+    </style>
 </head>
 <body>
 
-<h1>My page</h1>
-<select id="chapterSelect" name="chapterId">
-    <option value="">-- Choose chapter --</option>
+<div class="sheet">
 
-    <option th:each="chapter : ${chapters}"
-            th:value="${chapter.id}"
-            th:text="${chapter.name}">
-    </option>
-</select>
+    <header class="masthead">
+        <h1 class="wordmark">Quiz</h1>
+        <span class="wordmark-rule"></span>
+    </header>
 
-<select id="subchapterSelect" name="subchapterId">
-    <option value="">-- Choose subchapter --</option>
-</select>
+    <!-- The two selects are the working context: they filter the panel on the
+         right and they decide where a new question is filed. -->
+    <section class="drawer">
+        <div class="field">
+            <label class="field-label" for="chapterSelect">Chapter</label>
+            <select class="select" id="chapterSelect">
+                <option value="">Choose a chapter</option>
+                <option th:each="chapter : ${chapters}"
+                        th:value="${chapter.id}"
+                        th:text="${chapter.name}"></option>
+                <option value="__new__">+ New chapter…</option>
+            </select>
 
-<hr>
+            <div class="creator" id="chapterCreator" hidden>
+                <input class="creator-input" type="text" id="chapterNameInput"
+                       placeholder="Chapter name" aria-label="New chapter name"
+                       autocomplete="off">
+                <button class="button button-mini" type="button" data-create="chapter">Add</button>
+                <button class="button button-mini button-ghost" type="button" data-cancel="chapter">Cancel</button>
+            </div>
+        </div>
 
-<!-- ADD CHAPTER -->
-<div>
-    <input type="text" id="chapterName" placeholder="New chapter name">
-    <button onclick="addChapter()">Add Chapter</button>
-</div>
+        <div class="field">
+            <label class="field-label" for="subchapterSelect">Subchapter</label>
+            <select class="select" id="subchapterSelect" disabled>
+                <option value="">Choose a subchapter</option>
+                <option value="__new__">+ New subchapter…</option>
+            </select>
 
-<br>
+            <div class="creator" id="subchapterCreator" hidden>
+                <input class="creator-input" type="text" id="subchapterNameInput"
+                       placeholder="Subchapter name" aria-label="New subchapter name"
+                       autocomplete="off">
+                <button class="button button-mini" type="button" data-create="subchapter">Add</button>
+                <button class="button button-mini button-ghost" type="button" data-cancel="subchapter">Cancel</button>
+            </div>
+        </div>
+    </section>
 
-<!-- ADD SUBCHAPTER -->
-<div>
-    <input type="text" id="subchapterName" placeholder="New subchapter name">
-    <button onclick="addSubchapter()">Add Subchapter</button>
-</div>
+    <main class="workspace">
 
-<br>
+        <form class="card is-locked" id="questionForm" autocomplete="off">
+            <p class="card-tab" id="cardTab">Pick a chapter and subchapter first</p>
 
-<!-- ADD QUESTION -->
-<div>
-    <input type="text" id="questionText" placeholder="New question">
-    <button onclick="addQuestion()">Add Question</button>
+            <div class="card-body">
+                <div class="card-field">
+                    <label class="card-label" for="questionText">Question</label>
+                    <textarea class="card-input" id="questionText" rows="3" disabled></textarea>
+                </div>
+
+                <div class="card-field">
+                    <label class="card-label" for="answerText">
+                        Answer <span class="card-optional">optional</span>
+                    </label>
+                    <textarea class="card-input" id="answerText" rows="3" disabled></textarea>
+                </div>
+            </div>
+
+            <div class="card-foot">
+                <p class="status" id="status" role="status" aria-live="polite"></p>
+                <button class="button" type="submit" id="submitButton" disabled>
+                    Add question <kbd>Ctrl</kbd><kbd>↵</kbd>
+                </button>
+            </div>
+        </form>
+
+        <aside class="panel">
+            <header class="panel-head">
+                <p class="panel-scope" id="panelScope">All questions</p>
+                <p class="panel-count" id="panelCount"></p>
+            </header>
+
+            <ul class="panel-list" id="questionList" aria-live="polite"></ul>
+
+            <p class="panel-note" id="panelNote"></p>
+        </aside>
+
+    </main>
 </div>
 
 <script>
+    const NEW_OPTION = "__new__";
+
     const chapterSelect = document.getElementById("chapterSelect");
     const subchapterSelect = document.getElementById("subchapterSelect");
 
-    chapterSelect.addEventListener("change", async function () {
-        const chapterId = this.value;
+    const questionForm = document.getElementById("questionForm");
+    const questionText = document.getElementById("questionText");
+    const answerText = document.getElementById("answerText");
+    const submitButton = document.getElementById("submitButton");
+    const cardTab = document.getElementById("cardTab");
+    const statusLine = document.getElementById("status");
 
-        subchapterSelect.innerHTML = '<option value="">-- Choose subchapter --</option>';
+    const panelScope = document.getElementById("panelScope");
+    const panelCount = document.getElementById("panelCount");
+    const questionList = document.getElementById("questionList");
+    const panelNote = document.getElementById("panelNote");
+
+    const creators = {
+        chapter: {
+            box: document.getElementById("chapterCreator"),
+            input: document.getElementById("chapterNameInput"),
+            select: chapterSelect
+        },
+        subchapter: {
+            box: document.getElementById("subchapterCreator"),
+            input: document.getElementById("subchapterNameInput"),
+            select: subchapterSelect
+        }
+    };
+
+    // The selects fall back to these when the user opens "+ New …", because
+    // choosing that option must not count as changing the context.
+    let lastValue = { chapter: "", subchapter: "" };
+
+    // Id of the question to highlight once the panel re-renders.
+    let flashId = null;
+
+    /* ------------------------------------------------------------- context */
+
+    function context() {
+        return {
+            chapterId: chapterSelect.value === NEW_OPTION ? "" : chapterSelect.value,
+            subchapterId: subchapterSelect.value === NEW_OPTION ? "" : subchapterSelect.value,
+            chapterName: chosenName(chapterSelect),
+            subchapterName: chosenName(subchapterSelect)
+        };
+    }
+
+    function chosenName(select) {
+        const option = select.selectedOptions[0];
+
+        return option && option.value && option.value !== NEW_OPTION ? option.textContent : "";
+    }
+
+    function path(where) {
+        return [where.chapterName, where.subchapterName].filter(Boolean).join(" › ");
+    }
+
+    function renderContext() {
+        const where = context();
+        const ready = Boolean(where.subchapterId);
+
+        subchapterSelect.disabled = !where.chapterId;
+
+        questionForm.classList.toggle("is-locked", !ready);
+        questionText.disabled = !ready;
+        answerText.disabled = !ready;
+        submitButton.disabled = !ready;
+
+        if (ready) {
+            cardTab.textContent = path(where);
+        } else if (where.chapterId) {
+            cardTab.textContent = where.chapterName + " › choose a subchapter";
+        } else {
+            cardTab.textContent = "Pick a chapter and subchapter first";
+        }
+
+        panelScope.textContent = path(where) || "All questions";
+    }
+
+    /* ------------------------------------------------------------ requests */
+
+    async function getJson(url) {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error("Request failed (" + response.status + ")");
+        }
+
+        return response.json();
+    }
+
+    async function send(url, body) {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+
+        // A body is not guaranteed on every status, so a missing one must not
+        // turn into an unhandled rejection.
+        const data = await response.json().catch(() => ({}));
+
+        return { ok: response.ok, status: response.status, data: data };
+    }
+
+    function setStatus(message, kind) {
+        statusLine.textContent = message || "";
+        statusLine.className = "status" + (kind ? " is-" + kind : "");
+    }
+
+    /* ------------------------------------------------------------- loading */
+
+    function optionFor(item) {
+        const option = document.createElement("option");
+        option.value = String(item.id);
+        option.textContent = item.name;
+
+        return option;
+    }
+
+    function addOptions(select, items) {
+        const anchor = select.querySelector('option[value="' + NEW_OPTION + '"]');
+
+        items.forEach(item => {
+            const option = optionFor(item);
+
+            // The server hands lists over sorted, so this only ever moves a
+            // single freshly created entry into its place.
+            const successor = Array.from(select.options).find(existing =>
+                existing.value
+                && existing.value !== NEW_OPTION
+                && existing.textContent.localeCompare(
+                    option.textContent, undefined, { sensitivity: "base" }) > 0);
+
+            select.insertBefore(option, successor || anchor);
+        });
+    }
+
+    function resetSubchapters() {
+        subchapterSelect.innerHTML = "";
+        subchapterSelect.append(optionFor({ id: "", name: "Choose a subchapter" }));
+        subchapterSelect.append(optionFor({ id: NEW_OPTION, name: "+ New subchapter…" }));
+        lastValue.subchapter = "";
+    }
+
+    async function loadSubchapters() {
+        const chapterId = context().chapterId;
+
+        resetSubchapters();
 
         if (!chapterId) {
             return;
         }
 
-        const response = await fetch(`/subchapters?chapterId=${chapterId}`);
-        const subchapters = await response.json();
+        try {
+            addOptions(subchapterSelect, await getJson("/api/subchapters?chapterId=" + chapterId));
+        } catch (error) {
+            setStatus("Could not load subchapters. " + error.message, "error");
+        }
+    }
 
-        subchapters.forEach(subchapter => {
-            const option = document.createElement("option");
-            option.value = subchapter.id;
-            option.textContent = subchapter.name;
-            subchapterSelect.appendChild(option);
+    async function loadQuestions() {
+        const where = context();
+        const params = new URLSearchParams();
+
+        // An empty select means "no filter on that level", so the parameter is
+        // left out rather than sent blank.
+        if (where.chapterId) {
+            params.set("chapterId", where.chapterId);
+        }
+
+        if (where.subchapterId) {
+            params.set("subchapterId", where.subchapterId);
+        }
+
+        try {
+            renderQuestions(await getJson("/api/questions?" + params), where);
+        } catch (error) {
+            setStatus("Could not load questions. " + error.message, "error");
+        }
+    }
+
+    function renderQuestions(page, where) {
+        const highlight = flashId;
+        flashId = null;
+
+        questionList.innerHTML = "";
+        panelCount.textContent = page.total === 1 ? "1 question" : page.total + " questions";
+
+        if (page.total === 0) {
+            panelNote.textContent = emptyMessage(where);
+            return;
+        }
+
+        page.items.forEach(question =>
+            questionList.append(entryFor(question, where, highlight)));
+
+        panelNote.textContent = page.items.length < page.total
+            ? "Showing the " + page.items.length + " most recent."
+            : "";
+    }
+
+    function emptyMessage(where) {
+        if (where.subchapterId) {
+            return "Nothing filed here yet. Write the first question on the left.";
+        }
+
+        if (where.chapterId) {
+            return "No questions in this chapter yet. Choose a subchapter to start one.";
+        }
+
+        return "No questions yet. Pick a chapter and a subchapter, then write one.";
+    }
+
+    function entryFor(question, where, highlight) {
+        const entry = document.createElement("li");
+        entry.className = "entry" + (question.id === highlight ? " is-new" : "");
+
+        const text = document.createElement("p");
+        text.className = "entry-question";
+        // textContent, not innerHTML: this is text the user typed.
+        text.textContent = question.question;
+        entry.append(text);
+
+        if (question.answer) {
+            const answer = document.createElement("p");
+            answer.className = "entry-answer";
+            answer.textContent = question.answer;
+            entry.append(answer);
+        }
+
+        // The panel header already names the current selection, so each entry
+        // only repeats the part that the header leaves open.
+        const origin = where.subchapterId
+            ? ""
+            : [where.chapterId ? "" : question.chapter, question.subchapter]
+                .filter(Boolean)
+                .join(" › ");
+
+        if (origin) {
+            const label = document.createElement("p");
+            label.className = "entry-origin";
+            label.textContent = origin;
+            entry.append(label);
+        }
+
+        return entry;
+    }
+
+    /* -------------------------------------------------------------- create */
+
+    function openCreator(kind) {
+        creators[kind].box.hidden = false;
+        creators[kind].input.value = "";
+        creators[kind].input.focus();
+    }
+
+    function closeCreator(kind) {
+        creators[kind].box.hidden = true;
+        creators[kind].input.value = "";
+    }
+
+    async function createChapter() {
+        const name = creators.chapter.input.value.trim();
+
+        if (!name) {
+            setStatus("A chapter needs a name.", "error");
+            creators.chapter.input.focus();
+            return;
+        }
+
+        const reply = await send("/api/chapters", { name: name });
+
+        if (reply.status === 409) {
+            // The name is taken, so select what is already there instead of
+            // making the user retype it.
+            closeCreator("chapter");
+            chapterSelect.value = String(reply.data.existingId);
+            lastValue.chapter = chapterSelect.value;
+            setStatus(reply.data.message, null);
+            await chapterChanged();
+            return;
+        }
+
+        if (!reply.ok) {
+            setStatus(reply.data.message || "Could not add the chapter.", "error");
+            return;
+        }
+
+        addOptions(chapterSelect, [reply.data]);
+        chapterSelect.value = String(reply.data.id);
+        lastValue.chapter = chapterSelect.value;
+        closeCreator("chapter");
+        setStatus("Chapter added.", "ok");
+
+        await chapterChanged();
+
+        // A fresh chapter holds nothing yet, and a question needs a subchapter,
+        // so the next step is opened rather than merely made possible.
+        openCreator("subchapter");
+    }
+
+    async function createSubchapter() {
+        const chapterId = context().chapterId;
+        const name = creators.subchapter.input.value.trim();
+
+        if (!chapterId) {
+            setStatus("Choose a chapter before adding a subchapter to it.", "error");
+            return;
+        }
+
+        if (!name) {
+            setStatus("A subchapter needs a name.", "error");
+            creators.subchapter.input.focus();
+            return;
+        }
+
+        const reply = await send("/api/chapters/" + chapterId + "/subchapters", { name: name });
+
+        if (reply.status === 409) {
+            closeCreator("subchapter");
+            subchapterSelect.value = String(reply.data.existingId);
+            lastValue.subchapter = subchapterSelect.value;
+            setStatus(reply.data.message, null);
+            await subchapterChanged();
+            return;
+        }
+
+        if (!reply.ok) {
+            setStatus(reply.data.message || "Could not add the subchapter.", "error");
+            return;
+        }
+
+        addOptions(subchapterSelect, [reply.data]);
+        subchapterSelect.value = String(reply.data.id);
+        lastValue.subchapter = subchapterSelect.value;
+        closeCreator("subchapter");
+        setStatus("Subchapter added.", "ok");
+
+        await subchapterChanged();
+        questionText.focus();
+    }
+
+    async function addQuestion(event) {
+        event.preventDefault();
+
+        const where = context();
+        const text = questionText.value.trim();
+
+        if (!where.subchapterId) {
+            setStatus("Pick a chapter and subchapter first.", "error");
+            return;
+        }
+
+        if (!text) {
+            setStatus("A question needs some text.", "error");
+            questionText.focus();
+            return;
+        }
+
+        submitButton.disabled = true;
+
+        const reply = await send("/api/questions", {
+            subchapterId: Number(where.subchapterId),
+            text: text,
+            answer: answerText.value
+        });
+
+        submitButton.disabled = false;
+
+        if (!reply.ok) {
+            setStatus(reply.data.message || "Could not add the question.", "error");
+            return;
+        }
+
+        // Clear and hand the caret straight back, so a run of questions is one
+        // uninterrupted keyboard loop.
+        questionText.value = "";
+        answerText.value = "";
+        questionText.focus();
+
+        setStatus("Question added.", "ok");
+
+        flashId = reply.data.id;
+        await loadQuestions();
+    }
+
+    /* ------------------------------------------------------------- wiring */
+
+    async function chapterChanged() {
+        await loadSubchapters();
+        renderContext();
+        await loadQuestions();
+    }
+
+    async function subchapterChanged() {
+        renderContext();
+        await loadQuestions();
+    }
+
+    chapterSelect.addEventListener("change", () => {
+        if (chapterSelect.value === NEW_OPTION) {
+            chapterSelect.value = lastValue.chapter;
+            openCreator("chapter");
+            return;
+        }
+
+        lastValue.chapter = chapterSelect.value;
+        closeCreator("chapter");
+        setStatus("", null);
+        chapterChanged();
+    });
+
+    subchapterSelect.addEventListener("change", () => {
+        if (subchapterSelect.value === NEW_OPTION) {
+            subchapterSelect.value = lastValue.subchapter;
+            openCreator("subchapter");
+            return;
+        }
+
+        lastValue.subchapter = subchapterSelect.value;
+        closeCreator("subchapter");
+        setStatus("", null);
+        subchapterChanged();
+    });
+
+    document.querySelectorAll("[data-create]").forEach(button => {
+        button.addEventListener("click", () => {
+            if (button.dataset.create === "chapter") {
+                createChapter();
+            } else {
+                createSubchapter();
+            }
         });
     });
 
-    async function addChapter() {
-
-    const name = document.getElementById("chapterName").value;
-
-    await fetch("/addChapter", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            name: name
-        })
+    document.querySelectorAll("[data-cancel]").forEach(button => {
+        button.addEventListener("click", () => {
+            closeCreator(button.dataset.cancel);
+            creators[button.dataset.cancel].select.focus();
+        });
     });
 
-    alert("Chapter added");
-}
+    Object.keys(creators).forEach(kind => {
+        creators[kind].input.addEventListener("keydown", event => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                if (kind === "chapter") {
+                    createChapter();
+                } else {
+                    createSubchapter();
+                }
+            }
 
-async function addSubchapter() {
-
-    const name = document.getElementById("subchapterName").value;
-    const chapterId = document.getElementById("chapterSelect").value;
-
-    await fetch("/addSubchapter", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            name: name,
-            chapterId: chapterId
-        })
+            if (event.key === "Escape") {
+                closeCreator(kind);
+                creators[kind].select.focus();
+            }
+        });
     });
 
-    alert("Subchapter added");
-}
+    questionForm.addEventListener("submit", addQuestion);
 
-async function addQuestion() {
-
-    const text          = document.getElementById("questionText").value;
-    const subchapterId  = document.getElementById("subchapterSelect").value;
-    const chapterId     = document.getElementById("chapterSelect").value;
-
-    await fetch("/addQuestion", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            text: text,
-            subchapterId: subchapterId,
-            chapterId: chapterId
-        })
+    // Enter belongs to the textarea, so saving gets its own chord.
+    questionForm.addEventListener("keydown", event => {
+        if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            questionForm.requestSubmit();
+        }
     });
 
-    alert("Question added");
-}
+    /* --------------------------------------------------------- first paint */
+
+    (async function start() {
+        renderContext();
+        await loadQuestions();
+
+        // Placeholder plus "+ New chapter…" and nothing else means an empty
+        // database, where naming the first chapter is the only useful move.
+        if (chapterSelect.options.length <= 2) {
+            openCreator("chapter");
+            panelNote.textContent = "No chapters yet. Name your first one above.";
+        }
+    })();
 </script>
 </body>
 </html>

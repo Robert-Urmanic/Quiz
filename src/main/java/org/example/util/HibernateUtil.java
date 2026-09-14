@@ -96,16 +96,32 @@ public class HibernateUtil {
         getSessionFactory().close();
     }
 
-    public static void save(Object object) {
+    /**
+     * Persists one entity in its own transaction and hands it back with the
+     * generated id filled in. The rollback and the close sit in catch/finally
+     * so a failed insert cannot leave the transaction open or leak the
+     * connection back into the pool.
+     */
+    public static <T> T save(T entity) {
 
         Session session = getSessionFactory().openSession();
+        Transaction tx = null;
 
-        Transaction tx = session.beginTransaction();
+        try {
+            tx = session.beginTransaction();
 
-        session.persist(object);
+            session.persist(entity);
 
-        tx.commit();
+            tx.commit();
 
-        session.close();
+            return entity;
+        } catch (RuntimeException ex) {
+            if (tx != null && tx.isActive()) {
+                tx.rollback();
+            }
+            throw ex;
+        } finally {
+            session.close();
+        }
     }
 }

@@ -1,11 +1,7 @@
-# Render Blueprint: creates the database and the web service together and wires
-# the connection string between them, so no credentials are entered by hand.
-databases:
-  - name: quiz-db
-    databaseName: quiz
-    user: quiz
-    plan: free
-
+# Render Blueprint. Deliberately no `databases:` block here - Render deletes a
+# free Postgres instance after 30 days, which already cost this project its
+# data once. The database lives at an external provider whose free tier does
+# not expire (Neon), and only its connection string is handed in.
 services:
   - type: web
     name: javaquiz
@@ -14,8 +10,8 @@ services:
     dockerfilePath: ./Dockerfile
     healthCheckPath: /json
     envVars:
-      # HibernateUtil translates this into a JDBC url plus credentials.
+      # sync: false means Render asks for the value once in the dashboard and
+      # keeps it there, so the credentials never enter this repository.
+      # HibernateUtil translates it into a JDBC url plus username and password.
       - key: DATABASE_URL
-        fromDatabase:
-          name: quiz-db
-          property: connectionString
+        sync: false
