@@ -7,12 +7,16 @@ import java.util.List;
 
 public class ChapterRepository {
 
-    public List<Chapter> findAll() {
-        // 1. Open a session from our Utility
+    public List<Chapter> findByBookId(int bookId) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 
-            // 2. Write HQL (Notice: "Chapter" is the Class name, not the table name!)
-            return session.createQuery("from Chapter order by name", Chapter.class).list();
+            // "Chapter" is the class name, not the table name.
+            return session.createQuery(
+                            "from Chapter c where c.book.id = :bookId order by c.name",
+                            Chapter.class
+                    )
+                    .setParameter("bookId", bookId)
+                    .list();
         }
         // try-with-resources automatically closes the session for you!
     }
@@ -24,15 +28,19 @@ public class ChapterRepository {
     }
 
     /**
-     * Case-insensitive lookup used to spot a chapter the user is about to
-     * create for the second time. Returns null when the name is still free.
+     * Case-insensitive lookup within one book. Names only have to be unique per
+     * book, so "Generics" may exist in both Effective Java and Java in a
+     * Nutshell without either one being a duplicate.
      */
-    public Chapter findByName(String name) {
+    public Chapter findByBookIdAndName(int bookId, String name) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             return session.createQuery(
-                            "from Chapter c where lower(c.name) = lower(:name)",
+                            "from Chapter c"
+                                    + " where c.book.id = :bookId"
+                                    + " and lower(c.name) = lower(:name)",
                             Chapter.class
                     )
+                    .setParameter("bookId", bookId)
                     .setParameter("name", name)
                     .list()
                     .stream()

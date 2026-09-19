@@ -1,8 +1,10 @@
 package org.example.restController;
 
+import org.example.entity.Book;
 import org.example.entity.Chapter;
 import org.example.entity.Question;
 import org.example.entity.Subchapter;
+import org.example.repository.BookRepository;
 import org.example.repository.ChapterRepository;
 import org.example.repository.QuestionRepository;
 import org.example.repository.SubchapterRepository;
@@ -24,6 +26,7 @@ public class HomeController {
     private static final int LATEST_QUESTION_COUNT = 15;
 
     // The repositories hold no state, so one instance each is enough.
+    private final BookRepository bookRepository = new BookRepository();
     private final ChapterRepository chapterRepository = new ChapterRepository();
     private final SubchapterRepository subchapterRepository = new SubchapterRepository();
     private final QuestionRepository questionRepository = new QuestionRepository();
@@ -32,12 +35,23 @@ public class HomeController {
 
     @GetMapping("/")
     public String index(Model model) {
-        model.addAttribute("chapters", chapterRepository.findAll());
+        // Only the books travel with the page now. Chapters depend on which
+        // book is picked, so they are fetched the same way subchapters are.
+        model.addAttribute("books", bookRepository.findAll());
 
         return "index"; // loads templates/index.html
     }
 
     /* -------------------------------------------------------------- reading */
+
+    @GetMapping("/api/chapters")
+    @ResponseBody
+    public List<Map<String, Object>> chapters(@RequestParam int bookId) {
+        return chapterRepository.findByBookId(bookId)
+                .stream()
+                .map(HomeController::view)
+                .toList();
+    }
 
     @GetMapping("/api/subchapters")
     @ResponseBody
@@ -49,47 +63,79 @@ public class HomeController {
     }
 
     /**
-     * Feeds the question panel. Both parameters are optional: a missing
-     * chapterId or subchapterId widens the selection instead of emptying it, so
-     * the panel has something to show before a chapter is picked.
+     * Feeds the question panel. All three parameters are optional: a missing
+     * one widens the selection instead of emptying it, so the panel has
+     * something to show before a book is picked.
      */
     @GetMapping("/api/questions")
     @ResponseBody
     public Map<String, Object> questions(
+            @RequestParam(required = false) Integer bookId,
             @RequestParam(required = false) Integer chapterId,
             @RequestParam(required = false) Integer subchapterId) {
 
         List<Map<String, Object>> items = questionRepository
-                .findLatest(chapterId, subchapterId, LATEST_QUESTION_COUNT)
+                .findLatest(bookId, chapterId, subchapterId, LATEST_QUESTION_COUNT)
                 .stream()
                 .map(HomeController::view)
                 .toList();
 
         return Map.of(
                 "items", items,
-                "total", questionRepository.count(chapterId, subchapterId)
+                "total", questionRepository.count(bookId, chapterId, subchapterId)
         );
     }
 
     /* -------------------------------------------------------------- writing */
 
-    @PostMapping("/api/chapters")
+    @PostMapping("/api/books")
     @ResponseBody
-    public ResponseEntity<Map<String, Object>> addChapter(@RequestBody NewChapter body) {
+    public ResponseEntity<Map<String, Object>> addBook(@RequestBody NewBook body) {
+        String title = trimmed(body.name());
+
+        if (title == null) {
+            return badRequest("A book needs a title.");
+        }
+
+        Book existing = bookRepository.findByTitle(title);
+        if (existing != null) {
+            return duplicate("Book " + quoted(existing.getTitle()) + " already exists.",
+                    existing.getId());
+        }
+
+        Book book = new Book();
+        book.setTitle(title);
+
+        return created(view(HibernateUtil.save(book)));
+    }
+
+    @PostMapping("/api/books/{bookId}/chapters")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> addChapter(
+            @PathVariable int bookId, @RequestBody NewChapter body) {
+
         String name = trimmed(body.name());
 
         if (name == null) {
             return badRequest("A chapter needs a name.");
         }
 
-        Chapter existing = chapterRepository.findByName(name);
+        Book book = bookRepository.findById(bookId);
+        if (book == null) {
+            return gone("That book no longer exists. Reload the page.");
+        }
+
+        // Only unique within the book: two books may each have a "Generics".
+        Chapter existing = chapterRepository.findByBookIdAndName(bookId, name);
         if (existing != null) {
-            return duplicate("Chapter " + quoted(existing.getName()) + " already exists.",
+            return duplicate(
+                    quoted(existing.getName()) + " already exists in " + book.getTitle() + ".",
                     existing.getId());
         }
 
         Chapter chapter = new Chapter();
         chapter.setName(name);
+        chapter.setBook(book);
 
         return created(view(HibernateUtil.save(chapter)));
     }
@@ -128,12 +174,19 @@ public class HomeController {
     @ResponseBody
     public ResponseEntity<Map<String, Object>> addQuestion(@RequestBody NewQuestion body) {
         if (body.subchapterId() == null) {
-            return badRequest("Pick a chapter and subchapter first.");
+            return badRequest("Pick a book, chapter and subchapter first.");
         }
 
         String text = trimmed(body.text());
         if (text == null) {
             return badRequest("A question needs some text.");
+        }
+
+        // The page is optional, but a nonsensical one is refused rather than
+        // stored, because nothing downstream would ever question it again.
+        Integer page = body.page();
+        if (page != null && page < 1) {
+            return badRequest("Page numbers start at 1.");
         }
 
         Subchapter subchapter = subchapterRepository.findById(body.subchapterId());
@@ -144,6 +197,7 @@ public class HomeController {
         Question question = new Question();
         question.setQuestion(text);
         question.setAnswer(trimmed(body.answer()));
+        question.setPage(page);
         question.setSubchapter(subchapter);
         // The chapter comes from the subchapter, so the two can no longer
         // disagree the way they could when the client sent both ids.
@@ -164,13 +218,23 @@ public class HomeController {
 
     /* ------------------------------------------------------- request bodies */
 
+    public record NewBook(String name) {}
+
     public record NewChapter(String name) {}
 
     public record NewSubchapter(String name) {}
 
-    public record NewQuestion(Integer subchapterId, String text, String answer) {}
+    public record NewQuestion(Integer subchapterId, String text, String answer, Integer page) {}
 
     /* ---------------------------------------------------------------- views */
+
+    /**
+     * A book travels as "name" like every other level does, so one dropdown
+     * helper on the page can fill all three selects.
+     */
+    private static Map<String, Object> view(Book book) {
+        return Map.of("id", book.getId(), "name", book.getTitle());
+    }
 
     private static Map<String, Object> view(Chapter chapter) {
         return Map.of("id", chapter.getId(), "name", chapter.getName());
@@ -182,14 +246,22 @@ public class HomeController {
 
     private static Map<String, Object> view(Question question) {
         // Map.of() would reject the nulls that show up when a question has no
-        // answer yet, or no chapter attached in older rows.
+        // answer or no page yet.
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", question.getId());
         row.put("question", question.getQuestion());
         row.put("answer", question.getAnswer());
+        row.put("page", question.getPage());
+        row.put("book", bookTitleOf(question));
         row.put("chapter", question.getChapter() == null ? null : question.getChapter().getName());
         row.put("subchapter", question.getSubchapter() == null ? null : question.getSubchapter().getName());
         return row;
+    }
+
+    private static String bookTitleOf(Question question) {
+        Chapter chapter = question.getChapter();
+
+        return chapter == null || chapter.getBook() == null ? null : chapter.getBook().getTitle();
     }
 
     /* -------------------------------------------------------------- replies */

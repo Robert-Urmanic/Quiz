@@ -10,6 +10,12 @@ public class Chapter {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
+    // optional = false because a chapter without a book has nowhere to sit in
+    // the hierarchy the page navigates.
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "bookId", nullable = false)
+    private Book book;
+
     @Column(name = "name")
     private String name;
 
@@ -27,11 +33,19 @@ public class Chapter {
         return name;
     }
 
+    public Book getBook() {
+        return book;
+    }
+
     public List<Subchapter> getSubchapters() {
         return subchapters;
     }
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public void setBook(Book book) {
+        this.book = book;
     }
 }

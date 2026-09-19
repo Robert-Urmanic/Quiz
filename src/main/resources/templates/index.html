@@ -280,6 +280,34 @@
 
         .card-input:focus { outline: none; }
 
+        /* Answer and page share a line: a page number is a few digits, and a
+           whole row of its own would push the card past the fold. */
+        .card-row {
+            display: flex;
+            gap: 18px;
+            align-items: flex-start;
+        }
+
+        .card-row .card-field-answer { flex: 1 1 auto; min-width: 0; }
+        .card-row .card-field-page { flex: 0 0 auto; }
+
+        /* No ruled background and no spinners: the rule would sit under an
+           almost empty field, and the arrows would only get in the way of a
+           field that is filled from the keyboard. */
+        .card-input-page {
+            width: 7ch;
+            background-image: none;
+            font-size: 16px;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        .card-input-page::-webkit-inner-spin-button,
+        .card-input-page::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
         .card-foot {
             display: flex;
             align-items: center;
@@ -403,16 +431,33 @@
         <span class="wordmark-rule"></span>
     </header>
 
-    <!-- The two selects are the working context: they filter the panel on the
-         right and they decide where a new question is filed. -->
+    <!-- The three selects are the working context: they filter the panel on
+         the right and they decide where a new question is filed. Only the
+         books are in the page from the start; each select fills the next. -->
     <section class="drawer">
         <div class="field">
+            <label class="field-label" for="bookSelect">Book</label>
+            <select class="select" id="bookSelect">
+                <option value="">Choose a book</option>
+                <option th:each="book : ${books}"
+                        th:value="${book.id}"
+                        th:text="${book.title}"></option>
+                <option value="__new__">+ New book…</option>
+            </select>
+
+            <div class="creator" id="bookCreator" hidden>
+                <input class="creator-input" type="text" id="bookTitleInput"
+                       placeholder="Book title" aria-label="New book title"
+                       autocomplete="off">
+                <button class="button button-mini" type="button" data-create="book">Add</button>
+                <button class="button button-mini button-ghost" type="button" data-cancel="book">Cancel</button>
+            </div>
+        </div>
+
+        <div class="field">
             <label class="field-label" for="chapterSelect">Chapter</label>
-            <select class="select" id="chapterSelect">
+            <select class="select" id="chapterSelect" disabled>
                 <option value="">Choose a chapter</option>
-                <option th:each="chapter : ${chapters}"
-                        th:value="${chapter.id}"
-                        th:text="${chapter.name}"></option>
                 <option value="__new__">+ New chapter…</option>
             </select>
 
@@ -445,7 +490,7 @@
     <main class="workspace">
 
         <form class="card is-locked" id="questionForm" autocomplete="off">
-            <p class="card-tab" id="cardTab">Pick a chapter and subchapter first</p>
+            <p class="card-tab" id="cardTab">Pick a book, chapter and subchapter first</p>
 
             <div class="card-body">
                 <div class="card-field">
@@ -453,11 +498,21 @@
                     <textarea class="card-input" id="questionText" rows="3" disabled></textarea>
                 </div>
 
-                <div class="card-field">
-                    <label class="card-label" for="answerText">
-                        Answer <span class="card-optional">optional</span>
-                    </label>
-                    <textarea class="card-input" id="answerText" rows="3" disabled></textarea>
+                <div class="card-row">
+                    <div class="card-field card-field-answer">
+                        <label class="card-label" for="answerText">
+                            Answer <span class="card-optional">optional</span>
+                        </label>
+                        <textarea class="card-input" id="answerText" rows="3" disabled></textarea>
+                    </div>
+
+                    <div class="card-field card-field-page">
+                        <label class="card-label" for="pageNumber">
+                            Page <span class="card-optional">optional</span>
+                        </label>
+                        <input class="card-input card-input-page" id="pageNumber"
+                               type="number" min="1" step="1" inputmode="numeric" disabled>
+                    </div>
                 </div>
             </div>
 
@@ -486,12 +541,14 @@
 <script>
     const NEW_OPTION = "__new__";
 
+    const bookSelect = document.getElementById("bookSelect");
     const chapterSelect = document.getElementById("chapterSelect");
     const subchapterSelect = document.getElementById("subchapterSelect");
 
     const questionForm = document.getElementById("questionForm");
     const questionText = document.getElementById("questionText");
     const answerText = document.getElementById("answerText");
+    const pageNumber = document.getElementById("pageNumber");
     const submitButton = document.getElementById("submitButton");
     const cardTab = document.getElementById("cardTab");
     const statusLine = document.getElementById("status");
@@ -501,7 +558,56 @@
     const questionList = document.getElementById("questionList");
     const panelNote = document.getElementById("panelNote");
 
+    // The three dropdowns behave the same way; they differ only in where they
+    // post to, what they say, and what the next useful move is once an entry
+    // exists. Keeping those differences here is what stops the create-and-
+    // select dance from being written out three times.
+    const levels = {
+        book: {
+            select: bookSelect,
+            placeholder: "Choose a book",
+            newLabel: "+ New book…",
+            missingName: "A book needs a title.",
+            addFailed: "Could not add the book.",
+            loadFailed: "Could not load books.",
+            added: "Book added.",
+            endpoint: () => "/api/books",
+            afterCreate: () => openCreator("chapter")
+        },
+        chapter: {
+            select: chapterSelect,
+            placeholder: "Choose a chapter",
+            newLabel: "+ New chapter…",
+            missingName: "A chapter needs a name.",
+            missingParent: "Choose a book before adding a chapter to it.",
+            addFailed: "Could not add the chapter.",
+            loadFailed: "Could not load chapters.",
+            added: "Chapter added.",
+            parentId: where => where.bookId,
+            endpoint: where => "/api/books/" + where.bookId + "/chapters",
+            afterCreate: () => openCreator("subchapter")
+        },
+        subchapter: {
+            select: subchapterSelect,
+            placeholder: "Choose a subchapter",
+            newLabel: "+ New subchapter…",
+            missingName: "A subchapter needs a name.",
+            missingParent: "Choose a chapter before adding a subchapter to it.",
+            addFailed: "Could not add the subchapter.",
+            loadFailed: "Could not load subchapters.",
+            added: "Subchapter added.",
+            parentId: where => where.chapterId,
+            endpoint: where => "/api/chapters/" + where.chapterId + "/subchapters",
+            afterCreate: () => questionText.focus()
+        }
+    };
+
     const creators = {
+        book: {
+            box: document.getElementById("bookCreator"),
+            input: document.getElementById("bookTitleInput"),
+            select: bookSelect
+        },
         chapter: {
             box: document.getElementById("chapterCreator"),
             input: document.getElementById("chapterNameInput"),
@@ -516,17 +622,23 @@
 
     // The selects fall back to these when the user opens "+ New …", because
     // choosing that option must not count as changing the context.
-    let lastValue = { chapter: "", subchapter: "" };
+    let lastValue = { book: "", chapter: "", subchapter: "" };
 
     // Id of the question to highlight once the panel re-renders.
     let flashId = null;
 
     /* ------------------------------------------------------------- context */
 
+    function valueOf(select) {
+        return select.value === NEW_OPTION ? "" : select.value;
+    }
+
     function context() {
         return {
-            chapterId: chapterSelect.value === NEW_OPTION ? "" : chapterSelect.value,
-            subchapterId: subchapterSelect.value === NEW_OPTION ? "" : subchapterSelect.value,
+            bookId: valueOf(bookSelect),
+            chapterId: valueOf(chapterSelect),
+            subchapterId: valueOf(subchapterSelect),
+            bookName: chosenName(bookSelect),
             chapterName: chosenName(chapterSelect),
             subchapterName: chosenName(subchapterSelect)
         };
@@ -539,26 +651,32 @@
     }
 
     function path(where) {
-        return [where.chapterName, where.subchapterName].filter(Boolean).join(" › ");
+        return [where.bookName, where.chapterName, where.subchapterName]
+            .filter(Boolean)
+            .join(" › ");
     }
 
     function renderContext() {
         const where = context();
         const ready = Boolean(where.subchapterId);
 
+        chapterSelect.disabled = !where.bookId;
         subchapterSelect.disabled = !where.chapterId;
 
         questionForm.classList.toggle("is-locked", !ready);
         questionText.disabled = !ready;
         answerText.disabled = !ready;
+        pageNumber.disabled = !ready;
         submitButton.disabled = !ready;
 
         if (ready) {
             cardTab.textContent = path(where);
         } else if (where.chapterId) {
-            cardTab.textContent = where.chapterName + " › choose a subchapter";
+            cardTab.textContent = path(where) + " › choose a subchapter";
+        } else if (where.bookId) {
+            cardTab.textContent = where.bookName + " › choose a chapter";
         } else {
-            cardTab.textContent = "Pick a chapter and subchapter first";
+            cardTab.textContent = "Pick a book, chapter and subchapter first";
         }
 
         panelScope.textContent = path(where) || "All questions";
@@ -623,26 +741,43 @@
         });
     }
 
-    function resetSubchapters() {
-        subchapterSelect.innerHTML = "";
-        subchapterSelect.append(optionFor({ id: "", name: "Choose a subchapter" }));
-        subchapterSelect.append(optionFor({ id: NEW_OPTION, name: "+ New subchapter…" }));
-        lastValue.subchapter = "";
+    function resetLevel(kind) {
+        const level = levels[kind];
+
+        level.select.innerHTML = "";
+        level.select.append(optionFor({ id: "", name: level.placeholder }));
+        level.select.append(optionFor({ id: NEW_OPTION, name: level.newLabel }));
+        lastValue[kind] = "";
+    }
+
+    async function fillLevel(kind, url) {
+        try {
+            addOptions(levels[kind].select, await getJson(url));
+        } catch (error) {
+            setStatus(levels[kind].loadFailed + " " + error.message, "error");
+        }
+    }
+
+    async function loadChapters() {
+        const bookId = context().bookId;
+
+        // Both lower levels go, not just the next one: a chapter left standing
+        // under a different book would still be selectable.
+        resetLevel("chapter");
+        resetLevel("subchapter");
+
+        if (bookId) {
+            await fillLevel("chapter", "/api/chapters?bookId=" + bookId);
+        }
     }
 
     async function loadSubchapters() {
         const chapterId = context().chapterId;
 
-        resetSubchapters();
+        resetLevel("subchapter");
 
-        if (!chapterId) {
-            return;
-        }
-
-        try {
-            addOptions(subchapterSelect, await getJson("/api/subchapters?chapterId=" + chapterId));
-        } catch (error) {
-            setStatus("Could not load subchapters. " + error.message, "error");
+        if (chapterId) {
+            await fillLevel("subchapter", "/api/subchapters?chapterId=" + chapterId);
         }
     }
 
@@ -652,6 +787,10 @@
 
         // An empty select means "no filter on that level", so the parameter is
         // left out rather than sent blank.
+        if (where.bookId) {
+            params.set("bookId", where.bookId);
+        }
+
         if (where.chapterId) {
             params.set("chapterId", where.chapterId);
         }
@@ -679,6 +818,8 @@
             return;
         }
 
+        panelNote.textContent = "";
+
         page.items.forEach(question =>
             questionList.append(entryFor(question, where, highlight)));
 
@@ -696,7 +837,11 @@
             return "No questions in this chapter yet. Choose a subchapter to start one.";
         }
 
-        return "No questions yet. Pick a chapter and a subchapter, then write one.";
+        if (where.bookId) {
+            return "No questions in this book yet. Choose a chapter to start one.";
+        }
+
+        return "No questions yet. Pick a book, chapter and subchapter, then write one.";
     }
 
     function entryFor(question, where, highlight) {
@@ -717,17 +862,24 @@
         }
 
         // The panel header already names the current selection, so each entry
-        // only repeats the part that the header leaves open.
+        // only repeats the part that the header leaves open. The page is never
+        // in the header, so it is shown whenever the question carries one.
         const origin = where.subchapterId
             ? ""
-            : [where.chapterId ? "" : question.chapter, question.subchapter]
+            : [where.bookId ? "" : question.book,
+               where.chapterId ? "" : question.chapter,
+               question.subchapter]
                 .filter(Boolean)
                 .join(" › ");
 
-        if (origin) {
+        const meta = [origin, question.page ? "p. " + question.page : ""]
+            .filter(Boolean)
+            .join("  ·  ");
+
+        if (meta) {
             const label = document.createElement("p");
             label.className = "entry-origin";
-            label.textContent = origin;
+            label.textContent = meta;
             entry.append(label);
         }
 
@@ -747,85 +899,55 @@
         creators[kind].input.value = "";
     }
 
-    async function createChapter() {
-        const name = creators.chapter.input.value.trim();
+    function selectEntry(kind, id) {
+        levels[kind].select.value = String(id);
+        lastValue[kind] = levels[kind].select.value;
+    }
 
-        if (!name) {
-            setStatus("A chapter needs a name.", "error");
-            creators.chapter.input.focus();
+    async function createEntry(kind) {
+        const level = levels[kind];
+        const where = context();
+        const name = creators[kind].input.value.trim();
+
+        // The top level has no parent to be missing, hence the guard.
+        if (level.parentId && !level.parentId(where)) {
+            setStatus(level.missingParent, "error");
             return;
         }
 
-        const reply = await send("/api/chapters", { name: name });
+        if (!name) {
+            setStatus(level.missingName, "error");
+            creators[kind].input.focus();
+            return;
+        }
+
+        const reply = await send(level.endpoint(where), { name: name });
 
         if (reply.status === 409) {
             // The name is taken, so select what is already there instead of
             // making the user retype it.
-            closeCreator("chapter");
-            chapterSelect.value = String(reply.data.existingId);
-            lastValue.chapter = chapterSelect.value;
+            closeCreator(kind);
+            selectEntry(kind, reply.data.existingId);
             setStatus(reply.data.message, null);
-            await chapterChanged();
+            await changed[kind]();
             return;
         }
 
         if (!reply.ok) {
-            setStatus(reply.data.message || "Could not add the chapter.", "error");
+            setStatus(reply.data.message || level.addFailed, "error");
             return;
         }
 
-        addOptions(chapterSelect, [reply.data]);
-        chapterSelect.value = String(reply.data.id);
-        lastValue.chapter = chapterSelect.value;
-        closeCreator("chapter");
-        setStatus("Chapter added.", "ok");
+        addOptions(level.select, [reply.data]);
+        selectEntry(kind, reply.data.id);
+        closeCreator(kind);
+        setStatus(level.added, "ok");
 
-        await chapterChanged();
+        await changed[kind]();
 
-        // A fresh chapter holds nothing yet, and a question needs a subchapter,
+        // A fresh entry holds nothing yet, and a question needs a subchapter,
         // so the next step is opened rather than merely made possible.
-        openCreator("subchapter");
-    }
-
-    async function createSubchapter() {
-        const chapterId = context().chapterId;
-        const name = creators.subchapter.input.value.trim();
-
-        if (!chapterId) {
-            setStatus("Choose a chapter before adding a subchapter to it.", "error");
-            return;
-        }
-
-        if (!name) {
-            setStatus("A subchapter needs a name.", "error");
-            creators.subchapter.input.focus();
-            return;
-        }
-
-        const reply = await send("/api/chapters/" + chapterId + "/subchapters", { name: name });
-
-        if (reply.status === 409) {
-            closeCreator("subchapter");
-            subchapterSelect.value = String(reply.data.existingId);
-            lastValue.subchapter = subchapterSelect.value;
-            setStatus(reply.data.message, null);
-            await subchapterChanged();
-            return;
-        }
-
-        if (!reply.ok) {
-            setStatus(reply.data.message || "Could not add the subchapter.", "error");
-            return;
-        }
-
-        addOptions(subchapterSelect, [reply.data]);
-        subchapterSelect.value = String(reply.data.id);
-        lastValue.subchapter = subchapterSelect.value;
-        closeCreator("subchapter");
-        setStatus("Subchapter added.", "ok");
-
-        await subchapterChanged();
-        questionText.focus();
+        level.afterCreate();
     }
 
     async function addQuestion(event) {
@@ -833,9 +955,10 @@
 
         const where = context();
         const text = questionText.value.trim();
+        const page = pageNumber.value.trim();
 
         if (!where.subchapterId) {
-            setStatus("Pick a chapter and subchapter first.", "error");
+            setStatus("Pick a book, chapter and subchapter first.", "error");
             return;
         }
 
@@ -845,12 +968,19 @@
             return;
         }
 
+        if (page && !(Number.isInteger(Number(page)) && Number(page) >= 1)) {
+            setStatus("A page is a whole number, starting at 1.", "error");
+            pageNumber.focus();
+            return;
+        }
+
         submitButton.disabled = true;
 
         const reply = await send("/api/questions", {
             subchapterId: Number(where.subchapterId),
             text: text,
-            answer: answerText.value
+            answer: answerText.value,
+            page: page ? Number(page) : null
         });
 
         submitButton.disabled = false;
@@ -861,7 +991,9 @@
         }
 
         // Clear and hand the caret straight back, so a run of questions is one
-        // uninterrupted keyboard loop.
+        // uninterrupted keyboard loop. The page survives on purpose: several
+        // questions usually come off the same one, and it stays in plain sight
+        // for the moment it stops being true.
         questionText.value = "";
         answerText.value = "";
         questionText.focus();
@@ -874,6 +1006,12 @@
 
     /* ------------------------------------------------------------- wiring */
 
+    async function bookChanged() {
+        await loadChapters();
+        renderContext();
+        await loadQuestions();
+    }
+
     async function chapterChanged() {
         await loadSubchapters();
         renderContext();
@@ -885,40 +1023,31 @@
         await loadQuestions();
     }
 
-    chapterSelect.addEventListener("change", () => {
-        if (chapterSelect.value === NEW_OPTION) {
-            chapterSelect.value = lastValue.chapter;
-            openCreator("chapter");
-            return;
-        }
+    const changed = {
+        book: bookChanged,
+        chapter: chapterChanged,
+        subchapter: subchapterChanged
+    };
 
-        lastValue.chapter = chapterSelect.value;
-        closeCreator("chapter");
-        setStatus("", null);
-        chapterChanged();
-    });
+    Object.keys(levels).forEach(kind => {
+        levels[kind].select.addEventListener("change", () => {
+            const select = levels[kind].select;
 
-    subchapterSelect.addEventListener("change", () => {
-        if (subchapterSelect.value === NEW_OPTION) {
-            subchapterSelect.value = lastValue.subchapter;
-            openCreator("subchapter");
-            return;
-        }
+            if (select.value === NEW_OPTION) {
+                select.value = lastValue[kind];
+                openCreator(kind);
+                return;
+            }
 
-        lastValue.subchapter = subchapterSelect.value;
-        closeCreator("subchapter");
-        setStatus("", null);
-        subchapterChanged();
+            lastValue[kind] = select.value;
+            closeCreator(kind);
+            setStatus("", null);
+            changed[kind]();
+        });
     });
 
     document.querySelectorAll("[data-create]").forEach(button => {
-        button.addEventListener("click", () => {
-            if (button.dataset.create === "chapter") {
-                createChapter();
-            } else {
-                createSubchapter();
-            }
-        });
+        button.addEventListener("click", () => createEntry(button.dataset.create));
     });
 
     document.querySelectorAll("[data-cancel]").forEach(button => {
@@ -932,11 +1061,7 @@
         creators[kind].input.addEventListener("keydown", event => {
             if (event.key === "Enter") {
                 event.preventDefault();
-                if (kind === "chapter") {
-                    createChapter();
-                } else {
-                    createSubchapter();
-                }
+                createEntry(kind);
             }
 
             if (event.key === "Escape") {
@@ -962,11 +1087,11 @@
         renderContext();
         await loadQuestions();
 
-        // Placeholder plus "+ New chapter…" and nothing else means an empty
-        // database, where naming the first chapter is the only useful move.
-        if (chapterSelect.options.length <= 2) {
-            openCreator("chapter");
-            panelNote.textContent = "No chapters yet. Name your first one above.";
+        // Placeholder plus "+ New book…" and nothing else means an empty
+        // database, where naming the first book is the only useful move.
+        if (bookSelect.options.length <= 2) {
+            openCreator("book");
+            panelNote.textContent = "No books yet. Name your first one above.";
         }
     })();
 </script>

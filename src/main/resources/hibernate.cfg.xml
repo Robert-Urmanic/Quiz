@@ -15,6 +15,7 @@
 
         <property name="hbm2ddl.auto">update</property>
 
+        <mapping class="org.example.entity.Book"/>
         <mapping class="org.example.entity.Chapter"/>
         <mapping class="org.example.entity.Subchapter"/>
         <mapping class="org.example.entity.Question"/>

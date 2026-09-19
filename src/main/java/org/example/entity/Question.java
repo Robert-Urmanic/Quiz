@@ -24,6 +24,11 @@ public class Question {
     @Column(name = "answer")
     private String answer;
 
+    // Integer rather than int: a question that did not come off a page leaves
+    // this empty, and 0 is not the same thing as "not filled in".
+    @Column(name = "page")
+    private Integer page;
+
     public int getId() {
         return id;
     }
@@ -62,5 +67,13 @@ public class Question {
 
     public void setAnswer(String answer) {
         this.answer = answer;
+    }
+
+    public Integer getPage() {
+        return page;
+    }
+
+    public void setPage(Integer page) {
+        this.page = page;
     }
 }
