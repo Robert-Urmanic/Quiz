@@ -15,7 +15,10 @@ public class Book {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @Column(name = "title")
+    // Long enough that no real title reaches it, but still a bounded string:
+    // the duplicate check compares these with lower(), and Hibernate refuses
+    // that function on an unbounded column.
+    @Column(name = "title", length = 1000)
     private String title;
 
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL)

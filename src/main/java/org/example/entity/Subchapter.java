@@ -14,7 +14,10 @@ public class Subchapter {
     @JoinColumn(name = "chapterId") // This is the column name in your SQL table
     private Chapter chapter;
 
-    @Column(name = "name")
+    // Long enough that no real title reaches it, but still a bounded string:
+    // the duplicate check compares these with lower(), and Hibernate refuses
+    // that function on an unbounded column.
+    @Column(name = "name", length = 1000)
     private String name;
 
     public Subchapter() {} // Required

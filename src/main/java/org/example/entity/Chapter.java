@@ -16,7 +16,10 @@ public class Chapter {
     @JoinColumn(name = "bookId", nullable = false)
     private Book book;
 
-    @Column(name = "name")
+    // Long enough that no real title reaches it, but still a bounded string:
+    // the duplicate check compares these with lower(), and Hibernate refuses
+    // that function on an unbounded column.
+    @Column(name = "name", length = 1000)
     private String name;
 
     // This tells Hibernate that one Chapter has many Subchapters
