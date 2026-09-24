@@ -1,6 +1,7 @@
 package org.example.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.Length;
 import java.util.List;
 
 @Entity
@@ -18,10 +19,14 @@ public class Question {
     @JoinColumn(name = "subchapterId")
     private Subchapter subchapter;
 
-    @Column(name = "question")
+    // Without an explicit length these default to varchar(255), which an
+    // answer that explains something properly runs past without warning. The
+    // dialect turns LONG32 into the database's own unbounded text type, so the
+    // mapping stays the same on SQL Server and PostgreSQL alike.
+    @Column(name = "question", length = Length.LONG32)
     private String question;
 
-    @Column(name = "answer")
+    @Column(name = "answer", length = Length.LONG32)
     private String answer;
 
     // Integer rather than int: a question that did not come off a page leaves
