@@ -15,6 +15,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +42,15 @@ public class HomeController {
         model.addAttribute("books", bookRepository.findAll());
 
         return "index"; // loads templates/index.html
+    }
+
+    @GetMapping("/questions")
+    public String browse(Model model) {
+        // The book is picked on the page itself; everything below it arrives
+        // through /api/books/{bookId}/outline.
+        model.addAttribute("books", bookRepository.findAll());
+
+        return "questions";
     }
 
     /* -------------------------------------------------------------- reading */
@@ -84,6 +95,65 @@ public class HomeController {
                 "items", items,
                 "total", questionRepository.count(bookId, chapterId, subchapterId)
         );
+    }
+
+    /**
+     * The whole book as the overview page draws it: chapters, their
+     * subchapters, and each subchapter's questions in their numbered order.
+     * Empty chapters and subchapters come along too, so the page shows where
+     * questions are still missing. Three queries in total, however big the
+     * book is.
+     */
+    @GetMapping("/api/books/{bookId}/outline")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> outline(@PathVariable int bookId) {
+        Book book = bookRepository.findById(bookId);
+        if (book == null) {
+            return gone("That book no longer exists. Reload the page.");
+        }
+
+        Map<Integer, List<Subchapter>> subchaptersByChapter = new HashMap<>();
+        for (Subchapter subchapter : subchapterRepository.findByBookId(bookId)) {
+            subchaptersByChapter
+                    .computeIfAbsent(subchapter.getChapter().getId(), id -> new ArrayList<>())
+                    .add(subchapter);
+        }
+
+        // The query already returns the questions in reading order, and
+        // appending keeps it within every group.
+        Map<Integer, List<Map<String, Object>>> questionsBySubchapter = new HashMap<>();
+        Map<Integer, List<Map<String, Object>>> unfiledByChapter = new HashMap<>();
+        for (Question question : questionRepository.findByBookId(bookId)) {
+            if (question.getSubchapter() != null) {
+                questionsBySubchapter
+                        .computeIfAbsent(question.getSubchapter().getId(), id -> new ArrayList<>())
+                        .add(view(question));
+            } else {
+                // Left over from before every question had to have a
+                // subchapter. Shown so they are not lost, but they cannot be
+                // reordered, since the numbering lives inside a subchapter.
+                unfiledByChapter
+                        .computeIfAbsent(question.getChapter().getId(), id -> new ArrayList<>())
+                        .add(view(question));
+            }
+        }
+
+        List<Map<String, Object>> chapters = new ArrayList<>();
+        for (Chapter chapter : chapterRepository.findByBookId(bookId)) {
+            List<Map<String, Object>> subchapters = new ArrayList<>();
+            for (Subchapter subchapter : subchaptersByChapter.getOrDefault(chapter.getId(), List.of())) {
+                Map<String, Object> node = new LinkedHashMap<>(view(subchapter));
+                node.put("questions", questionsBySubchapter.getOrDefault(subchapter.getId(), List.of()));
+                subchapters.add(node);
+            }
+
+            Map<String, Object> node = new LinkedHashMap<>(view(chapter));
+            node.put("subchapters", subchapters);
+            node.put("unfiled", unfiledByChapter.getOrDefault(chapter.getId(), List.of()));
+            chapters.add(node);
+        }
+
+        return ResponseEntity.ok(Map.of("book", view(book), "chapters", chapters));
     }
 
     /* -------------------------------------------------------------- writing */
@@ -178,15 +248,11 @@ public class HomeController {
         }
 
         String text = trimmed(body.text());
-        if (text == null) {
-            return badRequest("A question needs some text.");
-        }
-
-        // The page is optional, but a nonsensical one is refused rather than
-        // stored, because nothing downstream would ever question it again.
         Integer page = body.page();
-        if (page != null && page < 1) {
-            return badRequest("Page numbers start at 1.");
+
+        String problem = problemWith(text, page);
+        if (problem != null) {
+            return badRequest(problem);
         }
 
         Subchapter subchapter = subchapterRepository.findById(body.subchapterId());
@@ -204,6 +270,59 @@ public class HomeController {
         question.setChapter(subchapter.getChapter());
 
         return created(view(HibernateUtil.save(question)));
+    }
+
+    @PutMapping("/api/questions/{questionId}")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> editQuestion(
+            @PathVariable int questionId, @RequestBody EditedQuestion body) {
+
+        String text = trimmed(body.text());
+        Integer page = body.page();
+
+        String problem = problemWith(text, page);
+        if (problem != null) {
+            return badRequest(problem);
+        }
+
+        // Asked first, apart from the update, so the reply can say which of
+        // the two went missing.
+        if (body.subchapterId() != null && subchapterRepository.findById(body.subchapterId()) == null) {
+            return gone("That subchapter no longer exists. Reload the page.");
+        }
+
+        Question question = questionRepository.update(
+                questionId, text, trimmed(body.answer()), page, body.subchapterId());
+        if (question == null) {
+            return gone("That question no longer exists. Reload the page.");
+        }
+
+        return ResponseEntity.ok(view(question));
+    }
+
+    /**
+     * Stores a new order for one subchapter. The page sends every question id
+     * of the subchapter, first to last, and the server numbers them from 1.
+     */
+    @PutMapping("/api/subchapters/{subchapterId}/order")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> reorder(
+            @PathVariable int subchapterId, @RequestBody NewOrder body) {
+
+        if (body.questionIds() == null) {
+            return badRequest("The new order is missing.");
+        }
+
+        if (subchapterRepository.findById(subchapterId) == null) {
+            return gone("That subchapter no longer exists. Reload the page.");
+        }
+
+        if (!questionRepository.reorder(subchapterId, body.questionIds())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message",
+                    "Questions were added or moved since this page loaded. Reload it and try again."));
+        }
+
+        return ResponseEntity.ok(Map.of("questionIds", body.questionIds()));
     }
 
     @GetMapping("/json")
@@ -225,6 +344,11 @@ public class HomeController {
     public record NewSubchapter(String name) {}
 
     public record NewQuestion(Integer subchapterId, String text, String answer, Integer page) {}
+
+    /** A null subchapterId leaves the question where it is. */
+    public record EditedQuestion(String text, String answer, Integer page, Integer subchapterId) {}
+
+    public record NewOrder(List<Integer> questionIds) {}
 
     /* ---------------------------------------------------------------- views */
 
@@ -286,6 +410,24 @@ public class HomeController {
     private static ResponseEntity<Map<String, Object>> duplicate(String message, int existingId) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("message", message, "existingId", existingId));
+    }
+
+    /**
+     * The rules a question has to pass whether it is new or edited, or null
+     * when it passes them. The page is optional, but a nonsensical one is
+     * refused rather than stored, because nothing downstream would ever
+     * question it again.
+     */
+    private static String problemWith(String text, Integer page) {
+        if (text == null) {
+            return "A question needs some text.";
+        }
+
+        if (page != null && page < 1) {
+            return "Page numbers start at 1.";
+        }
+
+        return null;
     }
 
     private static String quoted(String value) {

@@ -19,6 +19,24 @@ public class SubchapterRepository {
         }
     }
 
+    /**
+     * Every subchapter of a book in one go, for the overview page that lays
+     * out the whole book at once instead of one chapter at a time.
+     */
+    public List<Subchapter> findByBookId(int bookId) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            return session.createQuery(
+                            "select s from Subchapter s"
+                                    + " join fetch s.chapter c"
+                                    + " where c.book.id = :bookId"
+                                    + " order by s.name",
+                            Subchapter.class
+                    )
+                    .setParameter("bookId", bookId)
+                    .list();
+        }
+    }
+
     public Subchapter findById(int id) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             return session.get(Subchapter.class, id);

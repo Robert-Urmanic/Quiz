@@ -34,6 +34,13 @@ public class Question {
     @Column(name = "page")
     private Integer page;
 
+    // Where the question sits within its subchapter, counted from 1. Empty
+    // until the subchapter is first reordered: the empty ones follow the
+    // numbered ones in the order they were added, which is exactly where a
+    // new question belongs, so adding one never has to touch this.
+    @Column(name = "position")
+    private Integer position;
+
     public int getId() {
         return id;
     }
@@ -80,5 +87,13 @@ public class Question {
 
     public void setPage(Integer page) {
         this.page = page;
+    }
+
+    public Integer getPosition() {
+        return position;
+    }
+
+    public void setPosition(Integer position) {
+        this.position = position;
     }
 }

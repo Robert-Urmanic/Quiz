@@ -8,6 +8,7 @@ import org.hibernate.cfg.Configuration;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.function.Function;
 
 public class HibernateUtil {
 
@@ -98,11 +99,25 @@ public class HibernateUtil {
 
     /**
      * Persists one entity in its own transaction and hands it back with the
-     * generated id filled in. The rollback and the close sit in catch/finally
-     * so a failed insert cannot leave the transaction open or leak the
-     * connection back into the pool.
+     * generated id filled in.
      */
     public static <T> T save(T entity) {
+        return inTransaction(session -> {
+            session.persist(entity);
+
+            return entity;
+        });
+    }
+
+    /**
+     * Runs a unit of work in its own session and transaction and hands back
+     * whatever it returns. Entities loaded inside are managed, so changing
+     * them through their setters is enough: the commit writes them out.
+     * The rollback and the close sit in catch/finally so a failed unit of
+     * work cannot leave the transaction open or leak the connection back
+     * into the pool.
+     */
+    public static <R> R inTransaction(Function<Session, R> work) {
 
         Session session = getSessionFactory().openSession();
         Transaction tx = null;
@@ -110,11 +125,11 @@ public class HibernateUtil {
         try {
             tx = session.beginTransaction();
 
-            session.persist(entity);
+            R result = work.apply(session);
 
             tx.commit();
 
-            return entity;
+            return result;
         } catch (RuntimeException ex) {
             if (tx != null && tx.isActive()) {
                 tx.rollback();

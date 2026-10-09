@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Quiz · Browse</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+    <link rel="stylesheet" th:href="@{/quiz.css}">
+
+    <style>
+        html { scroll-behavior: smooth; }
+
+        /* --------------------------------------------------------- drawer */
+
+        .drawer {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 14px 44px;
+            padding-bottom: 26px;
+            border-bottom: 1px solid var(--rule);
+            margin-bottom: 36px;
+        }
+
+        .drawer .field { flex: 0 1 420px; }
+
+        .drawer-hint {
+            flex: 1 1 260px;
+            margin: 0;
+            font-family: var(--mono);
+            font-size: 10.5px;
+            line-height: 1.6;
+            color: var(--ink-soft);
+        }
+
+        /* --------------------------------------------------------- layout */
+
+        .layout {
+            display: grid;
+            grid-template-columns: 230px minmax(0, 1fr);
+            gap: 44px;
+            align-items: start;
+        }
+
+        /* ------------------------------------------------------- contents */
+
+        /* Sticky so the way to the next chapter is always one click away,
+           however far down the current one runs. */
+        .contents {
+            position: sticky;
+            top: 24px;
+            max-height: calc(100vh - 48px);
+            overflow-y: auto;
+            padding-right: 6px;
+        }
+
+        .contents-title {
+            margin: 0 0 12px;
+            padding-bottom: 10px;
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+            border-bottom: 3px double var(--rule);
+        }
+
+        .contents ol {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .contents > ol > li { margin-bottom: 12px; }
+
+        .contents ol ol {
+            margin-top: 3px;
+            padding-left: 12px;
+            border-left: 1px solid var(--rule);
+        }
+
+        .contents-link {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 3px 0;
+            font-size: 14px;
+            line-height: 1.35;
+            color: var(--ink);
+            text-decoration: none;
+        }
+
+        .contents ol ol .contents-link {
+            font-size: 13.5px;
+            color: var(--ink-soft);
+        }
+
+        .contents-link:hover,
+        .contents ol ol .contents-link:hover { color: var(--accent); }
+
+        .contents-count {
+            flex: none;
+            font-family: var(--mono);
+            font-size: 10.5px;
+            color: var(--ink-soft);
+        }
+
+        .contents-count.is-zero { opacity: 0.5; }
+
+        /* -------------------------------------------------------- outline */
+
+        .book-title {
+            margin: 0 0 6px;
+            font-size: 30px;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .book-count {
+            margin: 0 0 34px;
+            font-family: var(--mono);
+            font-size: 10.5px;
+            letter-spacing: 0.1em;
+            color: var(--ink-soft);
+        }
+
+        .chapter {
+            margin-bottom: 52px;
+            scroll-margin-top: 20px;
+        }
+
+        .chapter-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--ink);
+        }
+
+        .chapter-title {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+
+        .count {
+            flex: none;
+            font-family: var(--mono);
+            font-size: 10px;
+            letter-spacing: 0.1em;
+            color: var(--ink-soft);
+        }
+
+        .subchapter {
+            margin-top: 22px;
+            background: var(--surface);
+            border: 1px solid var(--rule);
+            border-radius: 2px;
+            box-shadow: 0 14px 30px -22px rgba(23, 36, 46, 0.5);
+            scroll-margin-top: 20px;
+        }
+
+        .subchapter-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 14px 22px 12px;
+            border-bottom: 3px double var(--rule);
+        }
+
+        .subchapter-title {
+            margin: 0;
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.13em;
+            text-transform: uppercase;
+            line-height: 1.5;
+        }
+
+        .subchapter.is-unfiled .subchapter-title { color: var(--ink-soft); }
+
+        .empty {
+            margin: 0;
+            padding: 18px 22px;
+            font-family: var(--mono);
+            font-size: 10.5px;
+            line-height: 1.6;
+            color: var(--ink-soft);
+        }
+
+        .outline > .empty { padding: 0; }
+
+        /* ------------------------------------------------------ questions */
+
+        .questions {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .question {
+            display: grid;
+            grid-template-columns: 52px minmax(0, 1fr) auto;
+            gap: 0 10px;
+            padding: 15px 18px 15px 6px;
+            border-bottom: 1px solid var(--rule);
+            background: var(--surface);
+        }
+
+        .question:last-child { border-bottom: 0; }
+
+        /* The number doubles as the drag handle: it is the thing that changes
+           when a question moves, so it is where the hand goes to move it. */
+        .question-grip {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 2px;
+            user-select: none;
+        }
+
+        .question.is-orderable .question-grip { cursor: grab; }
+
+        .question-number {
+            font-family: var(--mono);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--accent);
+        }
+
+        .question.is-orderable .question-grip:hover .question-number {
+            text-decoration: underline dotted;
+            text-underline-offset: 4px;
+        }
+
+        /* Answers and questions are often several lines typed with Enter, and
+           those breaks are part of what was written. */
+        .question-text {
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .question-answer {
+            margin: 6px 0 0;
+            font-size: 14px;
+            line-height: 1.45;
+            color: var(--ink-soft);
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .question-meta {
+            margin: 7px 0 0;
+            font-family: var(--mono);
+            font-size: 9.5px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+        }
+
+        .question-tools {
+            display: flex;
+            align-items: flex-start;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 120ms ease;
+        }
+
+        .question:hover .question-tools,
+        .question:focus-within .question-tools { opacity: 1; }
+
+        /* No hover on a touch screen, so the tools never hide there. */
+        @media (hover: none) {
+            .question-tools { opacity: 1; }
+        }
+
+        .question.is-editing .question-tools { display: none; }
+
+        .tool {
+            min-width: 30px;
+            padding: 5px 8px;
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+            background: transparent;
+            border: 1px solid var(--rule);
+            border-radius: 1px;
+            cursor: pointer;
+        }
+
+        .tool:hover:not(:disabled) {
+            color: var(--ink);
+            border-color: var(--ink);
+        }
+
+        .tool:disabled {
+            opacity: 0.35;
+            cursor: default;
+        }
+
+        .question.is-dragging {
+            opacity: 0.45;
+            background: var(--ground);
+        }
+
+        .question.is-flash { animation: filed 1800ms ease-out; }
+
+        /* --------------------------------------------------------- editor */
+
+        .editor-field {
+            margin-bottom: 14px;
+            padding-left: 12px;
+            border-left: 2px solid transparent;
+        }
+
+        .editor-field:focus-within { border-left-color: var(--accent); }
+
+        .editor-label {
+            display: block;
+            margin-bottom: 4px;
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+        }
+
+        .editor-field:focus-within .editor-label { color: var(--accent); }
+
+        .editor-input {
+            display: block;
+            width: 100%;
+            padding: 3px 0 5px;
+            font-family: var(--serif);
+            font-size: 16px;
+            line-height: 1.45;
+            color: var(--ink);
+            background: transparent;
+            border: 0;
+            border-bottom: 1px solid var(--rule);
+            border-radius: 0;
+            resize: vertical;
+            field-sizing: content;
+        }
+
+        .editor-input:focus {
+            outline: none;
+            border-bottom-color: var(--accent);
+        }
+
+        .editor-row {
+            display: flex;
+            gap: 18px;
+            align-items: flex-start;
+        }
+
+        .editor-row .editor-field:first-child { flex: 1 1 auto; min-width: 0; }
+        .editor-row .editor-field:last-child { flex: 0 0 auto; }
+
+        .editor-input-page {
+            width: 7ch;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        .editor-input-page::-webkit-inner-spin-button,
+        .editor-input-page::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .editor-select {
+            max-width: 420px;
+            font-size: 15px;
+        }
+
+        .editor-foot {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-left: 14px;
+        }
+
+        /* ---------------------------------------------------------- toast */
+
+        /* Fixed rather than at the top of the page: a reorder or a save can
+           happen far down a long book, out of sight of any header. */
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 22px;
+            transform: translateX(-50%);
+            max-width: calc(100vw - 32px);
+            padding: 10px 16px;
+            color: var(--surface);
+            background: var(--ink);
+            border-radius: 2px;
+            box-shadow: 0 10px 24px -12px rgba(23, 36, 46, 0.6);
+        }
+
+        .toast.status,
+        .toast.status.is-ok,
+        .toast.status.is-error { color: var(--surface); }
+
+        .toast.is-error { background: var(--error); }
+
+        .toast:empty { display: none; }
+
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            .question-tools { transition: none; }
+            .question.is-flash {
+                animation: none;
+                box-shadow: inset 3px 0 0 var(--flash);
+            }
+        }
+
+        @media (max-width: 860px) {
+            .layout { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+            .contents { position: static; max-height: none; overflow: visible; }
+            .question { grid-template-columns: 40px minmax(0, 1fr); }
+            .question-tools { grid-column: 2; margin-top: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sheet">
+
+    <header class="masthead">
+        <h1 class="wordmark">Quiz</h1>
+        <span class="wordmark-rule"></span>
+        <nav class="nav" aria-label="Pages">
+            <a class="nav-link" th:href="@{/}">Add</a>
+            <a class="nav-link" th:href="@{/questions}" aria-current="page">Browse</a>
+        </nav>
+    </header>
+
+    <section class="drawer">
+        <div class="field">
+            <label class="field-label" for="bookSelect">Book</label>
+            <select class="select" id="bookSelect">
+                <option th:each="book : ${books}"
+                        th:value="${book.id}"
+                        th:text="${book.title}"></option>
+            </select>
+        </div>
+
+        <p class="drawer-hint">
+            Drag a question by its number, or use the arrows, to change its place
+            in the subchapter. The order is saved as you go. To move a question
+            to another subchapter, edit it.
+        </p>
+    </section>
+
+    <div class="layout">
+        <nav class="contents" id="contents" aria-label="Chapters"></nav>
+        <main class="outline" id="outline" aria-busy="true"></main>
+    </div>
+</div>
+
+<p class="toast status" id="toast" role="status" aria-live="polite"></p>
+
+<script>
+    const bookSelect = document.getElementById("bookSelect");
+    const contents = document.getElementById("contents");
+    const outline = document.getElementById("outline");
+    const toast = document.getElementById("toast");
+
+    const BOOK_KEY = "quiz.browse.book";
+
+    // Every question on the page by id, as the server last described it. The
+    // list items only carry the id, so an editor can always be filled from,
+    // and cancelled back to, what is actually stored.
+    const questions = new Map();
+
+    // The book as last loaded, which is where the editor finds the
+    // subchapters a question can be moved to.
+    let book = null;
+
+    // The question being dragged, while a drag is in progress.
+    let dragged = null;
+
+    let toastTimer = null;
+
+    /* ------------------------------------------------------------ requests */
+
+    async function request(method, url, body) {
+        const response = await fetch(url, {
+            method: method,
+            headers: body === undefined ? {} : { "Content-Type": "application/json" },
+            body: body === undefined ? undefined : JSON.stringify(body)
+        });
+
+        // A body is not guaranteed on every status, so a missing one must not
+        // turn into an unhandled rejection.
+        const data = await response.json().catch(() => ({}));
+
+        return { ok: response.ok, status: response.status, data: data };
+    }
+
+    function say(message, kind) {
+        clearTimeout(toastTimer);
+        toast.textContent = message || "";
+        toast.className = "toast status" + (kind ? " is-" + kind : "");
+
+        // Errors stay until the next message, because they usually ask the
+        // user to do something; good news can go away by itself.
+        if (kind !== "error") {
+            toastTimer = setTimeout(() => say("", null), 2600);
+        }
+    }
+
+    /* ----------------------------------------------------------- elements */
+
+    function element(tag, className, text) {
+        const node = document.createElement(tag);
+
+        if (className) {
+            node.className = className;
+        }
+
+        // textContent, not innerHTML: almost everything here was typed by
+        // the user.
+        if (text !== undefined && text !== null) {
+            node.textContent = text;
+        }
+
+        return node;
+    }
+
+    function plural(count, word) {
+        return count + " " + word + (count === 1 ? "" : "s");
+    }
+
+    /* ------------------------------------------------------------- loading */
+
+    function storedBook() {
+        try {
+            return localStorage.getItem(BOOK_KEY);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function rememberBook(bookId) {
+        try {
+            localStorage.setItem(BOOK_KEY, bookId);
+        } catch (error) {
+            // Private windows may refuse; the URL still carries the choice.
+        }
+    }
+
+    function hasBook(bookId) {
+        return Array.from(bookSelect.options).some(option => option.value === bookId);
+    }
+
+    /**
+     * Loads the chosen book and draws it. When focusId is given, that
+     * question is brought into view and highlighted afterwards, which is how
+     * a moved question is found again in its new place.
+     */
+    async function loadBook(focusId) {
+        const bookId = bookSelect.value;
+
+        // The URL names the book, so a reload or a bookmark comes back to it.
+        const url = new URL(location.href);
+        url.searchParams.set("book", bookId);
+        history.replaceState(null, "", url);
+        rememberBook(bookId);
+
+        outline.setAttribute("aria-busy", "true");
+        const reply = await request("GET", "/api/books/" + bookId + "/outline");
+        outline.setAttribute("aria-busy", "false");
+
+        if (!reply.ok) {
+            contents.innerHTML = "";
+            outline.innerHTML = "";
+            outline.append(element("p", "empty",
+                reply.data.message || "Could not load the book (" + reply.status + ")."));
+            return;
+        }
+
+        render(reply.data);
+
+        const item = focusId && outline.querySelector('.question[data-id="' + focusId + '"]');
+        if (item) {
+            item.scrollIntoView({ block: "center" });
+            flash(item);
+        }
+    }
+
+    /* ------------------------------------------------------------ drawing */
+
+    function render(data) {
+        book = data;
+        questions.clear();
+        contents.innerHTML = "";
+        outline.innerHTML = "";
+
+        const total = data.chapters.reduce((sum, chapter) => sum + countIn(chapter), 0);
+
+        outline.append(element("h2", "book-title", data.book.name));
+        outline.append(element("p", "book-count",
+            plural(data.chapters.length, "chapter") + "  ·  " + plural(total, "question")));
+
+        if (data.chapters.length === 0) {
+            outline.append(element("p", "empty",
+                "This book has no chapters yet. Add them on the Add page."));
+            return;
+        }
+
+        contents.append(element("p", "contents-title", "Contents"));
+        const chapterLinks = element("ol");
+        contents.append(chapterLinks);
+
+        data.chapters.forEach(chapter => {
+            outline.append(chapterSection(chapter));
+            chapterLinks.append(contentsEntry(chapter));
+        });
+    }
+
+    function countIn(chapter) {
+        return chapter.unfiled.length
+            + chapter.subchapters.reduce((sum, sub) => sum + sub.questions.length, 0);
+    }
+
+    function contentsLink(href, name, count) {
+        const link = element("a", "contents-link");
+        link.href = href;
+        link.append(element("span", null, name));
+        link.append(element("span", "contents-count" + (count === 0 ? " is-zero" : ""), String(count)));
+
+        return link;
+    }
+
+    function contentsEntry(chapter) {
+        const item = element("li");
+        item.append(contentsLink("#chapter-" + chapter.id, chapter.name, countIn(chapter)));
+
+        if (chapter.subchapters.length > 0) {
+            const subLinks = element("ol");
+
+            chapter.subchapters.forEach(sub => {
+                const subItem = element("li");
+                subItem.append(contentsLink("#subchapter-" + sub.id, sub.name, sub.questions.length));
+                subLinks.append(subItem);
+            });
+
+            item.append(subLinks);
+        }
+
+        return item;
+    }
+
+    function chapterSection(chapter) {
+        const section = element("section", "chapter");
+        section.id = "chapter-" + chapter.id;
+
+        const head = element("header", "chapter-head");
+        head.append(element("h3", "chapter-title", chapter.name));
+        head.append(element("span", "count", plural(countIn(chapter), "question")));
+        section.append(head);
+
+        if (chapter.subchapters.length === 0 && chapter.unfiled.length === 0) {
+            section.append(element("p", "empty", "No subchapters yet."));
+        }
+
+        chapter.subchapters.forEach(sub => section.append(subchapterSection(sub)));
+
+        if (chapter.unfiled.length > 0) {
+            section.append(unfiledSection(chapter.unfiled));
+        }
+
+        return section;
+    }
+
+    function subchapterSection(sub) {
+        const section = element("section", "subchapter");
+        section.id = "subchapter-" + sub.id;
+
+        const head = element("header", "subchapter-head");
+        head.append(element("h4", "subchapter-title", sub.name));
+        head.append(element("span", "count", plural(sub.questions.length, "question")));
+        section.append(head);
+
+        if (sub.questions.length === 0) {
+            section.append(element("p", "empty", "No questions yet."));
+            return section;
+        }
+
+        const list = element("ol", "questions");
+        list.dataset.subchapterId = sub.id;
+
+        sub.questions.forEach(question => list.append(questionItem(question, true)));
+
+        rememberOrder(list);
+        renumber(list);
+        section.append(list);
+
+        return section;
+    }
+
+    /**
+     * Questions from before every question had to sit in a subchapter. They
+     * can be read and edited, but not numbered or moved, because the order
+     * is kept per subchapter.
+     */
+    function unfiledSection(items) {
+        const section = element("section", "subchapter is-unfiled");
+
+        const head = element("header", "subchapter-head");
+        head.append(element("h4", "subchapter-title", "Without a subchapter"));
+        head.append(element("span", "count", plural(items.length, "question")));
+        section.append(head);
+
+        const list = element("ol", "questions");
+        items.forEach(question => list.append(questionItem(question, false)));
+        section.append(list);
+
+        return section;
+    }
+
+    function questionItem(question, orderable) {
+        questions.set(question.id, question);
+
+        const item = element("li", "question" + (orderable ? " is-orderable" : ""));
+        item.dataset.id = question.id;
+
+        const grip = element("span", "question-grip");
+        grip.title = orderable ? "Drag to move" : "";
+        grip.append(element("span", "question-number", orderable ? "" : "–"));
+        item.append(grip);
+
+        const body = element("div", "question-body");
+        item.append(body);
+        fillBody(item);
+
+        const tools = element("div", "question-tools");
+
+        if (orderable) {
+            tools.append(toolButton("up", "↑"));
+            tools.append(toolButton("down", "↓"));
+        }
+
+        tools.append(toolButton("edit", "Edit"));
+        item.append(tools);
+
+        return item;
+    }
+
+    function toolButton(action, label) {
+        const button = element("button", "tool", label);
+        button.type = "button";
+        button.dataset.action = action;
+
+        return button;
+    }
+
+    /** Draws the read-only view of a question from what is stored. */
+    function fillBody(item) {
+        const question = questions.get(Number(item.dataset.id));
+        const body = item.querySelector(".question-body");
+
+        body.innerHTML = "";
+        body.append(element("p", "question-text", question.question));
+
+        if (question.answer) {
+            body.append(element("p", "question-answer", question.answer));
+        }
+
+        if (question.page) {
+            body.append(element("p", "question-meta", "p. " + question.page));
+        }
+    }
+
+    /* ------------------------------------------------------------ ordering */
+
+    function idsOf(list) {
+        return Array.from(list.children).map(item => Number(item.dataset.id));
+    }
+
+    function rememberOrder(list) {
+        list.dataset.saved = idsOf(list).join(",");
+    }
+
+    /**
+     * Writes 1..n into the numbers and the arrow labels, and switches off the
+     * arrows that would push a question past either end.
+     */
+    function renumber(list) {
+        const items = Array.from(list.children);
+
+        items.forEach((item, index) => {
+            const number = index + 1;
+            item.querySelector(".question-number").textContent = number;
+
+            const up = item.querySelector('[data-action="up"]');
+            const down = item.querySelector('[data-action="down"]');
+
+            up.disabled = index === 0;
+            down.disabled = index === items.length - 1;
+            up.setAttribute("aria-label", "Move question " + number + " up");
+            down.setAttribute("aria-label", "Move question " + number + " down");
+        });
+    }
+
+    function restoreOrder(list, ids) {
+        const byId = new Map(Array.from(list.children).map(item => [Number(item.dataset.id), item]));
+
+        ids.forEach(id => {
+            if (byId.has(id)) {
+                list.append(byId.get(id));
+            }
+        });
+
+        renumber(list);
+    }
+
+    /**
+     * Sends the list's current order to the server. Saves run one after
+     * another per list, so quick clicks on an arrow cannot overtake each
+     * other on the way and leave an older order as the stored one.
+     */
+    function saveOrder(list) {
+        const ids = idsOf(list);
+
+        if (ids.join(",") === list.dataset.saved) {
+            return;
+        }
+
+        const previous = list.saving || Promise.resolve();
+
+        list.saving = previous.then(async () => {
+            const reply = await request("PUT",
+                "/api/subchapters/" + list.dataset.subchapterId + "/order",
+                { questionIds: ids });
+
+            if (reply.ok) {
+                list.dataset.saved = ids.join(",");
+                say("Order saved.", "ok");
+                return;
+            }
+
+            // Put the list back the way the server still has it, so the
+            // numbers on screen never claim an order that was not stored.
+            restoreOrder(list, list.dataset.saved.split(",").map(Number));
+            say(reply.data.message || "Could not save the order.", "error");
+        });
+    }
+
+    function move(item, step) {
+        const list = item.parentElement;
+        const neighbour = step < 0 ? item.previousElementSibling : item.nextElementSibling;
+
+        if (!neighbour) {
+            return;
+        }
+
+        list.insertBefore(item, step < 0 ? neighbour : neighbour.nextElementSibling);
+        renumber(list);
+        saveOrder(list);
+
+        // Moving the item drops the focus in some browsers. Keep it on the
+        // same arrow so pressing it again keeps moving the same question; if
+        // that arrow just ran out of room, hand over to the other one.
+        const same = item.querySelector('[data-action="' + (step < 0 ? "up" : "down") + '"]');
+        const other = item.querySelector('[data-action="' + (step < 0 ? "down" : "up") + '"]');
+        (same.disabled ? other : same).focus();
+    }
+
+    // The item only becomes draggable while the number is held, so the text
+    // of a question can still be selected and copied like any other text.
+    outline.addEventListener("pointerdown", event => {
+        const grip = event.target.closest(".question.is-orderable:not(.is-editing) .question-grip");
+
+        if (grip) {
+            grip.parentElement.draggable = true;
+        }
+    });
+
+    outline.addEventListener("pointerup", () => {
+        outline.querySelectorAll('.question[draggable="true"]')
+            .forEach(item => { if (item !== dragged) item.draggable = false; });
+    });
+
+    outline.addEventListener("dragstart", event => {
+        const item = event.target.closest && event.target.closest(".question");
+
+        if (!item || !item.draggable) {
+            return;
+        }
+
+        dragged = item;
+        item.classList.add("is-dragging");
+        event.dataTransfer.effectAllowed = "move";
+        // Firefox will not start a drag without some data attached.
+        event.dataTransfer.setData("text/plain", item.dataset.id);
+    });
+
+    outline.addEventListener("dragover", event => {
+        if (!dragged) {
+            return;
+        }
+
+        const target = event.target.closest(".question");
+
+        // Only within the same subchapter: the numbering is per subchapter,
+        // and moving a question elsewhere is a different thing altogether.
+        if (!target || target.parentElement !== dragged.parentElement) {
+            return;
+        }
+
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+
+        if (target === dragged) {
+            return;
+        }
+
+        const box = target.getBoundingClientRect();
+        const below = event.clientY > box.top + box.height / 2;
+
+        target.parentElement.insertBefore(dragged, below ? target.nextElementSibling : target);
+        renumber(target.parentElement);
+    });
+
+    outline.addEventListener("drop", event => {
+        if (dragged) {
+            event.preventDefault();
+        }
+    });
+
+    outline.addEventListener("dragend", () => {
+        if (!dragged) {
+            return;
+        }
+
+        const item = dragged;
+        dragged = null;
+
+        item.draggable = false;
+        item.classList.remove("is-dragging");
+        saveOrder(item.parentElement);
+    });
+
+    /* ------------------------------------------------------------- editing */
+
+    function editorField(label, input) {
+        const field = element("div", "editor-field");
+        const caption = element("label", "editor-label", label);
+        const id = "edit-" + Math.random().toString(36).slice(2);
+
+        input.id = id;
+        caption.htmlFor = id;
+        field.append(caption, input);
+
+        return field;
+    }
+
+    function textArea(value) {
+        const area = element("textarea", "editor-input");
+        area.value = value || "";
+        // A fallback height for browsers without field-sizing: enough rows
+        // for what is already written, so nothing opens half hidden.
+        area.rows = Math.max(2, area.value.split("\n").length);
+
+        return area;
+    }
+
+    /** The subchapter id of the list the item sits in, or "" when unfiled. */
+    function subchapterOf(item) {
+        return item.parentElement.dataset.subchapterId || "";
+    }
+
+    /**
+     * Every subchapter of the book, grouped under its chapter, with the
+     * question's current one chosen. Picking another one moves the question
+     * there on save.
+     */
+    function subchapterPicker(current) {
+        const select = element("select", "select editor-select");
+
+        if (!current) {
+            const stay = element("option", null, "Without a subchapter");
+            stay.value = "";
+            select.append(stay);
+        }
+
+        book.chapters.forEach(chapter => {
+            if (chapter.subchapters.length === 0) {
+                return;
+            }
+
+            const group = element("optgroup");
+            group.label = chapter.name;
+
+            chapter.subchapters.forEach(sub => {
+                const option = element("option", null, sub.name);
+                option.value = String(sub.id);
+                group.append(option);
+            });
+
+            select.append(group);
+        });
+
+        select.value = current;
+
+        return select;
+    }
+
+    /** "Chapter › Subchapter" for a subchapter id, for telling where a question went. */
+    function placeName(subchapterId) {
+        for (const chapter of book.chapters) {
+            const sub = chapter.subchapters.find(candidate => String(candidate.id) === String(subchapterId));
+
+            if (sub) {
+                return chapter.name + " › " + sub.name;
+            }
+        }
+
+        return "another subchapter";
+    }
+
+    function flash(item) {
+        // Restart the highlight even if the previous one is still running.
+        item.classList.remove("is-flash");
+        void item.offsetWidth;
+        item.classList.add("is-flash");
+    }
+
+    function openEditor(item) {
+        const question = questions.get(Number(item.dataset.id));
+        const body = item.querySelector(".question-body");
+
+        item.classList.add("is-editing");
+        item.draggable = false;
+        body.innerHTML = "";
+
+        const text = textArea(question.question);
+        text.dataset.field = "text";
+
+        const answer = textArea(question.answer);
+        answer.dataset.field = "answer";
+
+        const page = element("input", "editor-input editor-input-page");
+        page.type = "number";
+        page.min = "1";
+        page.step = "1";
+        page.inputMode = "numeric";
+        page.value = question.page || "";
+        page.dataset.field = "page";
+
+        const row = element("div", "editor-row");
+        row.append(editorField("Answer", answer), editorField("Page", page));
+
+        const place = subchapterPicker(subchapterOf(item));
+        place.dataset.field = "subchapter";
+
+        const save = element("button", "button button-mini");
+        save.type = "button";
+        save.dataset.action = "save";
+        save.append("Save ");
+        save.append(element("kbd", null, "Ctrl"), element("kbd", null, "↵"));
+
+        const cancel = element("button", "button button-mini button-ghost");
+        cancel.type = "button";
+        cancel.dataset.action = "cancel";
+        cancel.append("Cancel ");
+        cancel.append(element("kbd", null, "Esc"));
+
+        const foot = element("div", "editor-foot");
+        foot.append(save, cancel);
+
+        body.append(editorField("Question", text), row, editorField("Subchapter", place), foot);
+
+        text.focus();
+        text.setSelectionRange(text.value.length, text.value.length);
+    }
+
+    function closeEditor(item) {
+        // A complaint about the editor's contents means nothing once the
+        // editor is gone.
+        if (toast.classList.contains("is-error")) {
+            say("", null);
+        }
+
+        item.classList.remove("is-editing");
+        fillBody(item);
+        item.querySelector('[data-action="edit"]').focus();
+    }
+
+    async function saveEditor(item) {
+        const field = name => item.querySelector('[data-field="' + name + '"]');
+        const text = field("text").value.trim();
+        const page = field("page").value.trim();
+        const saveButton = item.querySelector('[data-action="save"]');
+
+        if (!text) {
+            say("A question needs some text.", "error");
+            field("text").focus();
+            return;
+        }
+
+        if (page && !(Number.isInteger(Number(page)) && Number(page) >= 1)) {
+            say("A page is a whole number, starting at 1.", "error");
+            field("page").focus();
+            return;
+        }
+
+        const target = field("subchapter").value;
+        const moving = target !== "" && target !== subchapterOf(item);
+
+        saveButton.disabled = true;
+
+        const reply = await request("PUT", "/api/questions/" + item.dataset.id, {
+            text: text,
+            answer: field("answer").value,
+            page: page ? Number(page) : null,
+            subchapterId: moving ? Number(target) : null
+        });
+
+        saveButton.disabled = false;
+
+        if (!reply.ok) {
+            say(reply.data.message || "Could not save the question.", "error");
+            return;
+        }
+
+        if (moving) {
+            // Two lists and their numbering change, along with every count in
+            // the contents, so the book is drawn afresh rather than patched.
+            await loadBook(reply.data.id);
+            say("Moved to " + placeName(target) + ".", "ok");
+            return;
+        }
+
+        questions.set(reply.data.id, reply.data);
+        closeEditor(item);
+        flash(item);
+
+        say("Question saved.", "ok");
+    }
+
+    /* -------------------------------------------------------------- wiring */
+
+    outline.addEventListener("click", event => {
+        const button = event.target.closest("button[data-action]");
+
+        if (!button) {
+            return;
+        }
+
+        const item = button.closest(".question");
+
+        switch (button.dataset.action) {
+            case "up": move(item, -1); break;
+            case "down": move(item, 1); break;
+            case "edit": openEditor(item); break;
+            case "save": saveEditor(item); break;
+            case "cancel": closeEditor(item); break;
+        }
+    });
+
+    outline.addEventListener("keydown", event => {
+        const item = event.target.closest(".question.is-editing");
+
+        if (!item) {
+            return;
+        }
+
+        // Enter belongs to the textareas, so saving gets its own chord, the
+        // same one the Add page uses.
+        if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            saveEditor(item);
+        }
+
+        if (event.key === "Escape") {
+            event.preventDefault();
+            closeEditor(item);
+        }
+    });
+
+    bookSelect.addEventListener("change", () => loadBook());
+
+    /* --------------------------------------------------------- first paint */
+
+    (function start() {
+        if (bookSelect.options.length === 0) {
+            bookSelect.disabled = true;
+            outline.setAttribute("aria-busy", "false");
+
+            const note = element("p", "empty", "No books yet. ");
+            const link = element("a", null, "Add the first one.");
+            link.href = "/";
+            note.append(link);
+            outline.append(note);
+            return;
+        }
+
+        // The link someone followed wins over what this browser remembers,
+        // and both over simply the first book in the list.
+        const wanted = new URL(location.href).searchParams.get("book") || storedBook();
+
+        if (wanted && hasBook(wanted)) {
+            bookSelect.value = wanted;
+        }
+
+        loadBook();
+    })();
+</script>
+</body>
+</html>
