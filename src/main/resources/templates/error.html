@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<!-- Spring Boot renders this for any request from a browser that ends in an
+     error, with the status, its reason phrase and the failed path in the
+     model. Requests that ask for JSON keep getting JSON, so the pages' own
+     error handling is unaffected. -->
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="'Quiz · ' + (${status} ?: 'Error')">Quiz · Error</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+    <link rel="stylesheet" th:href="@{/quiz.css}">
+
+    <style>
+        .slip {
+            max-width: 560px;
+            margin: 72px auto 0;
+            background: var(--surface);
+            border: 1px solid var(--rule);
+            border-radius: 2px;
+            box-shadow: 0 14px 30px -22px rgba(23, 36, 46, 0.5);
+        }
+
+        .slip-tab {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            margin: 0;
+            padding: 15px 26px 13px;
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.13em;
+            text-transform: uppercase;
+            border-bottom: 3px double var(--rule);
+        }
+
+        .slip-status { color: var(--error); }
+
+        .slip-body { padding: 28px 26px 10px; }
+
+        .slip-title {
+            margin: 0 0 12px;
+            font-size: 26px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+
+        .slip-text {
+            margin: 0 0 18px;
+            font-size: 16px;
+            line-height: 1.55;
+            color: var(--ink-soft);
+        }
+
+        .slip-path {
+            margin: 0 0 18px;
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--ink-soft);
+            overflow-wrap: anywhere;
+        }
+
+        .slip-foot {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 18px 26px 24px;
+            border-top: 1px solid var(--rule);
+        }
+
+        /* The buttons are links here, so they need the underline taken off. */
+        .slip-foot .button { text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<div class="sheet">
+
+    <header class="masthead">
+        <h1 class="wordmark">Quiz</h1>
+        <span class="wordmark-rule"></span>
+        <nav class="nav" aria-label="Pages">
+            <a class="nav-link" th:href="@{/}">Add</a>
+            <a class="nav-link" th:href="@{/questions}">Browse</a>
+        </nav>
+    </header>
+
+    <main class="slip" th:switch="${status}">
+        <p class="slip-tab">
+            <span class="slip-status" th:text="${status} ?: 'Error'">Error</span>
+            <span th:text="${error}">Something went wrong</span>
+        </p>
+
+        <div class="slip-body" th:case="404">
+            <h2 class="slip-title">There is no page here.</h2>
+            <p class="slip-text">
+                The address may have a typo in it, or it points to something
+                that was never there. Your questions are where you left them.
+            </p>
+            <p class="slip-path" th:if="${path}" th:text="${path}"></p>
+        </div>
+
+        <div class="slip-body" th:case="400">
+            <h2 class="slip-title">That request did not make sense.</h2>
+            <p class="slip-text">
+                Something in the address or the form was not in the shape the
+                server expected, for example a number where text was sent.
+                Going back and trying again usually sorts it out.
+            </p>
+            <p class="slip-path" th:if="${path}" th:text="${path}"></p>
+        </div>
+
+        <div class="slip-body" th:case="405">
+            <h2 class="slip-title">This address cannot be opened directly.</h2>
+            <p class="slip-text">
+                It is meant to be used by the pages behind the scenes, not
+                visited in the browser. Start from one of the pages instead.
+            </p>
+            <p class="slip-path" th:if="${path}" th:text="${path}"></p>
+        </div>
+
+        <div class="slip-body" th:case="*">
+            <h2 class="slip-title">Something broke on the server.</h2>
+            <p class="slip-text">
+                This is not something you did. The most likely cause is the
+                database being unreachable for a moment, especially right after
+                the app has woken up. Wait a few seconds and reload.
+            </p>
+            <p class="slip-path" th:if="${path}" th:text="${path}"></p>
+        </div>
+
+        <div class="slip-foot">
+            <a class="button" th:href="@{/}">Add questions</a>
+            <a class="button button-ghost" th:href="@{/questions}">Browse questions</a>
+        </div>
+    </main>
+</div>
+</body>
+</html>
